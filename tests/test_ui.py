@@ -29,7 +29,7 @@ def isolated_database(monkeypatch):
 
 def test_add_and_refresh_buttons_use_database(qapp, isolated_database, monkeypatch):
     class AcceptedProductDialog:
-        def __init__(self, _parent):
+        def __init__(self, *_args):
             pass
 
         def exec(self):

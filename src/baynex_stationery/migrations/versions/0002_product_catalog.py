@@ -34,10 +34,11 @@ def upgrade() -> None:
         {"name": "خدمة", "symbol": "خدمة", "is_active": True},
     ])
     op.add_column("categories", sa.Column("description", sa.Text(), nullable=True))
-    op.add_column("products", sa.Column("unit_id", sa.Integer(), nullable=True))
-    op.create_foreign_key(
-        "fk_products_unit_id_units", "products", "units", ["unit_id"], ["id"], ondelete="RESTRICT"
-    )
+    with op.batch_alter_table("products", recreate="always") as batch:
+        batch.add_column(sa.Column("unit_id", sa.Integer(), nullable=True))
+        batch.create_foreign_key(
+            "fk_products_unit_id_units", "units", ["unit_id"], ["id"], ondelete="RESTRICT"
+        )
     op.create_index("ix_products_barcode", "products", ["barcode"])
     op.execute(
         "UPDATE products SET unit_id = (SELECT id FROM units WHERE units.symbol = products.unit) "
@@ -47,7 +48,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index("ix_products_barcode", table_name="products")
-    op.drop_constraint("fk_products_unit_id_units", "products", type_="foreignkey")
-    op.drop_column("products", "unit_id")
+    with op.batch_alter_table("products", recreate="always") as batch:
+        batch.drop_constraint("fk_products_unit_id_units", type_="foreignkey")
+        batch.drop_column("unit_id")
     op.drop_column("categories", "description")
     op.drop_table("units")
