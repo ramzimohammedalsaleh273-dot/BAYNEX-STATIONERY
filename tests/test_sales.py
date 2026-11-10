@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement, UnitOfMeasure
 from baynex_stationery.services.sales import post_sale
 
 
@@ -19,8 +19,11 @@ def session():
 
 
 def make_product(session, stock="10"):
+    unit = UnitOfMeasure(code="PCS", name="قطعة", symbol="قطعة", decimal_places=0)
+    session.add(unit)
+    session.flush()
     product = Product(
-        sku="P-001", name="دفتر", unit="قطعة",
+        sku="P-001", name="دفتر", unit="قطعة", unit_record=unit,
         cost_price=Decimal(2), sale_price=Decimal(5),
         stock_quantity=Decimal(stock), minimum_stock=Decimal(0),
     )

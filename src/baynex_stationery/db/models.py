@@ -60,7 +60,9 @@ class Product(Base):
     barcode: Mapped[str | None] = mapped_column(String(64), unique=True)
     name: Mapped[str] = mapped_column(String(200), nullable=False, index=True)
     unit: Mapped[str] = mapped_column(String(32), default="قطعة", nullable=False)
-    unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id", ondelete="RESTRICT"))
+    unit_id: Mapped[int] = mapped_column(
+        ForeignKey("units.id", ondelete="RESTRICT"), nullable=False
+    )
     cost_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     stock_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=Decimal(0), nullable=False)
@@ -69,7 +71,7 @@ class Product(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     category_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"))
     category: Mapped[Category | None] = relationship(back_populates="products")
-    unit_record: Mapped[UnitOfMeasure | None] = relationship(back_populates="products")
+    unit_record: Mapped[UnitOfMeasure] = relationship(back_populates="products")
     barcodes: Mapped[list[ProductBarcode]] = relationship(back_populates="product", cascade="all, delete-orphan")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)

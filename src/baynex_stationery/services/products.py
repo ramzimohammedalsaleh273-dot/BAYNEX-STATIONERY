@@ -168,7 +168,7 @@ def update_product(session: Session, product_id: int, **changes) -> Product:
             setattr(row, field, value)
     if "minimum_stock" in changes:
         value = decimal_value(changes["minimum_stock"], "الحد الأدنى للمخزون")
-        places = row.unit_record.decimal_places if row.unit_record else 3
+        places = row.unit_record.decimal_places
         step = Decimal(1).scaleb(-places)
         if value < 0 or value != value.quantize(step):
             raise ValueError(f"الحد الأدنى للمخزون غير صالح للوحدة الحالية ({places} خانات عشرية)")
