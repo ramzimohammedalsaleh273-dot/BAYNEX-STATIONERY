@@ -14,8 +14,8 @@ def post_sale(
     *,
     number: str,
     items: list[dict],
-    discount: Decimal = Decimal("0"),
-    tax_rate: Decimal = Decimal("0"),
+    discount: Decimal = Decimal(0),
+    tax_rate: Decimal = Decimal(0),
     payment_method: str = "cash",
     paid_amount: Decimal | None = None,
 ) -> Sale:
@@ -26,8 +26,8 @@ def post_sale(
         raise ValueError("الفاتورة يجب أن تحتوي على صنف واحد على الأقل")
 
     normalized = []
-    required: dict[int, Decimal] = defaultdict(lambda: Decimal("0"))
-    subtotal = Decimal("0")
+    required: dict[int, Decimal] = defaultdict(lambda: Decimal(0))
+    subtotal = Decimal(0)
     for row in items:
         product_id = int(row["product_id"])
         quantity = Decimal(str(row["quantity"]))
@@ -37,26 +37,27 @@ def post_sale(
         normalized.append((product_id, quantity))
 
     products = {
-        p.id: p for p in session.scalars(
+        product.id: product
+        for product in session.scalars(
             select(Product).where(Product.id.in_(required.keys())).with_for_update()
         )
     }
     if len(products) != len(required):
         raise ValueError("يوجد صنف غير موجود في قاعدة البيانات")
 
-    for product_id, qty in required.items():
+    for product_id, quantity in required.items():
         product = products[product_id]
         if not product.is_active:
             raise ValueError(f"الصنف غير نشط: {product.name}")
-        if product.stock_quantity < qty:
+        if product.stock_quantity < quantity:
             raise ValueError(f"الرصيد غير كافٍ للصنف: {product.name}")
 
     sale_lines = []
-    for product_id, qty in normalized:
+    for product_id, quantity in normalized:
         product = products[product_id]
-        amount = line_total(product.sale_price, qty)
+        amount = line_total(product.sale_price, quantity)
         subtotal += amount
-        sale_lines.append((product, qty, amount))
+        sale_lines.append((product, quantity, amount))
 
     subtotal = money(subtotal)
     total = invoice_total(subtotal, discount, tax_rate)
@@ -70,26 +71,46 @@ def post_sale(
         raise ValueError("طريقة الدفع مطلوبة")
 
     sale = Sale(
-        number=number.strip(), status="posted", subtotal=subtotal,
-        discount=discount_value, tax_amount=tax_value, total=total,
+        number=number.strip(),
+        status="posted",
+        subtotal=subtotal,
+        discount=discount_value,
+        tax_amount=tax_value,
+        total=total,
     )
     session.add(sale)
     session.flush()
 
-    for product, qty, amount in sale_lines:
-        product.stock_quantity -= qty
-        session.add(SaleItem(
-            sale_id=sale.id, product_id=product.id, product_name=product.name,
-            quantity=qty, unit_price=product.sale_price, line_total=amount,
-        ))
-        session.add(StockMovement(
-            product_id=product.id, movement_type="sale", quantity_delta=-qty,
-            reference_type="sale", reference_id=sale.id, note=f"فاتورة {sale.number}",
-        ))
+    for product, quantity, amount in sale_lines:
+        product.stock_quantity -= quantity
+        session.add(
+            SaleItem(
+                sale_id=sale.id,
+                product_id=product.id,
+                product_name=product.name,
+                quantity=quantity,
+                unit_price=product.sale_price,
+                line_total=amount,
+            )
+        )
+        session.add(
+            StockMovement(
+                product_id=product.id,
+                movement_type="sale",
+                quantity_delta=-quantity,
+                reference_type="sale",
+                reference_id=sale.id,
+                note=f"فاتورة {sale.number}",
+            )
+        )
 
     if paid:
-        session.add(Payment(
-            sale_id=sale.id, amount=paid, method=payment_method.strip(),
-        ))
+        session.add(
+            Payment(
+                sale_id=sale.id,
+                amount=paid,
+                method=payment_method.strip(),
+            )
+        )
     session.flush()
     return sale
