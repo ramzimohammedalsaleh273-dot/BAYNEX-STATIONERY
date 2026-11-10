@@ -74,7 +74,7 @@ def test_create_product_rejects_non_finite_price(session, value):
 
 
 def test_create_product_rejects_excess_stock_precision(session):
-    with pytest.raises(ValueError, match="ثلاث خانات"):
+    with pytest.raises(ValueError, match="خانات عشرية"):
         create_product(
             session,
             sku="INVALID-STOCK",
