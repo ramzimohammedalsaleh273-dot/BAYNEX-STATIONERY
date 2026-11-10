@@ -41,7 +41,7 @@ def test_add_and_refresh_buttons_use_database(qapp, isolated_database, monkeypat
                 "name": "قلم حبر",
                 "sale_price": Decimal("4.50"),
                 "cost_price": Decimal("2.00"),
-                "opening_stock": Decimal("20"),
+                "opening_stock": Decimal(20),
                 "barcode": "",
             }
 
