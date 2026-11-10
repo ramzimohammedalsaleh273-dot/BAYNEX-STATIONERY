@@ -21,8 +21,8 @@ def session():
 def make_product(session, stock="10"):
     product = Product(
         sku="P-001", name="دفتر", unit="قطعة",
-        cost_price=Decimal("2"), sale_price=Decimal("5"),
-        stock_quantity=Decimal(stock), minimum_stock=Decimal("0"),
+        cost_price=Decimal(2), sale_price=Decimal(5),
+        stock_quantity=Decimal(stock), minimum_stock=Decimal(0),
     )
     session.add(product)
     session.flush()
@@ -39,7 +39,7 @@ def test_post_sale_decrements_stock_and_records_documents(session):
     session.commit()
 
     assert sale.total == Decimal("11.50")
-    assert product.stock_quantity == Decimal("8")
+    assert product.stock_quantity == Decimal(8)
     assert len(list(session.scalars(select(SaleItem)))) == 1
     movement = session.scalar(select(StockMovement))
     assert movement.quantity_delta == Decimal("-2.000")
@@ -53,7 +53,7 @@ def test_sale_rejects_insufficient_stock_without_creating_sale(session):
             session, number="INV-002",
             items=[{"product_id": product.id, "quantity": "2"}],
         )
-    assert product.stock_quantity == Decimal("1")
+    assert product.stock_quantity == Decimal(1)
     assert session.scalar(select(Sale)) is None
 
 
