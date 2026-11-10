@@ -4,7 +4,7 @@ from decimal import Decimal
 import pytest
 from PySide6.QtWidgets import QApplication, QDialog
 from sqlalchemy import create_engine, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Product
