@@ -1,6 +1,8 @@
 """Database engine and versioned schema initialization."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, event
@@ -29,7 +31,7 @@ def initialize_database() -> None:
     migration_config = Config()
     migration_config.set_main_option(
         "script_location",
-        str(__import__("pathlib").Path(__file__).resolve().parents[1] / "migrations"),
+        str(Path(__file__).resolve().parents[1] / "migrations"),
     )
     migration_config.set_main_option("sqlalchemy.url", DATABASE_URL)
     command.upgrade(migration_config, "head")
