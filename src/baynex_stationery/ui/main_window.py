@@ -168,9 +168,16 @@ class MainWindow(QMainWindow):
         code, accepted = QInputDialog.getText(self, "رمز الوحدة", "رمز مختصر بالإنجليزية:")
         if not accepted:
             return
+        decimals, accepted = QInputDialog.getInt(
+            self, "دقة الوحدة", "عدد الخانات العشرية المسموح بها:", 0, 0, 3
+        )
+        if not accepted:
+            return
         try:
             with SessionLocal.begin() as session:
-                create_unit(session, code=code, name=name, symbol=name)
+                create_unit(
+                    session, code=code, name=name, symbol=name, decimal_places=decimals
+                )
             QMessageBox.information(self, "تم الحفظ", "تم إنشاء الوحدة بنجاح")
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر حفظ الوحدة", str(exc))

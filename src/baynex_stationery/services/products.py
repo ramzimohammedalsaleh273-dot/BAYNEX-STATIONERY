@@ -94,13 +94,14 @@ def create_product(session: Session, *, sku: str, name: str, sale_price: Decimal
     minimum_stock = decimal_value(minimum_stock, "الحد الأدنى للمخزون")
     if min(sale_price, cost_price, opening_stock, minimum_stock) < 0:
         raise ValueError("الأسعار والكميات لا يمكن أن تكون سالبة")
+    unit_row = _unit(session, unit)
+    quantity_step = Decimal(1).scaleb(-unit_row.decimal_places)
     for label, value in (("الرصيد الافتتاحي", opening_stock), ("الحد الأدنى للمخزون", minimum_stock)):
-        if value != value.quantize(Decimal("0.001")):
-            raise ValueError(f"{label} يقبل حتى ثلاث خانات عشرية")
+        if value != value.quantize(quantity_step):
+            raise ValueError(f"{label} لا يقبل أكثر من {unit_row.decimal_places} خانات عشرية حسب الوحدة")
     code = _barcode(barcode)
     if code and _barcode_used(session, code):
         raise ValueError("الباركود مستخدم لصنف آخر")
-    unit_row = _unit(session, unit)
     _category(session, category_id)
     row = Product(sku=sku, name=name, sale_price=sale_price, cost_price=cost_price,
                   stock_quantity=opening_stock, minimum_stock=minimum_stock, barcode=code,
@@ -167,11 +168,17 @@ def update_product(session: Session, product_id: int, **changes) -> Product:
             setattr(row, field, value)
     if "minimum_stock" in changes:
         value = decimal_value(changes["minimum_stock"], "الحد الأدنى للمخزون")
-        if value < 0 or value != value.quantize(Decimal("0.001")):
-            raise ValueError("الحد الأدنى للمخزون غير صالح")
+        places = row.unit_record.decimal_places if row.unit_record else 3
+        step = Decimal(1).scaleb(-places)
+        if value < 0 or value != value.quantize(step):
+            raise ValueError(f"الحد الأدنى للمخزون غير صالح للوحدة الحالية ({places} خانات عشرية)")
         row.minimum_stock = value
     if "unit" in changes:
         unit_row = _unit(session, changes["unit"])
+        step = Decimal(1).scaleb(-unit_row.decimal_places)
+        for label, quantity in (("الرصيد الحالي", row.stock_quantity), ("حد التنبيه", row.minimum_stock)):
+            if quantity != quantity.quantize(step):
+                raise ValueError(f"لا يمكن تغيير الوحدة؛ {label} لا يطابق دقة الوحدة الجديدة")
         row.unit = unit_row.name
         row.unit_record = unit_row
     if "category_id" in changes:

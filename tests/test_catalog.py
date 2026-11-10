@@ -67,6 +67,20 @@ def test_product_category_unit_and_multiple_barcodes(session):
     assert len(list_products(session, search="PEN-ALT")) == 1
     assert len(list_products(session, category_id=category.id)) == 1
 
+def test_quantity_precision_follows_the_selected_unit(session):
+    create_unit(session, code="M", name="متر", symbol="م", decimal_places=3)
+    product = create_product(
+        session, sku="M-001", name="سلك", sale_price=2,
+        unit="متر", opening_stock="1.234",
+    )
+    assert product.stock_quantity == 1.234
+    with pytest.raises(ValueError, match="حسب الوحدة"):
+        create_product(
+            session, sku="PCS-001", name="قلم", sale_price=2,
+            unit="قطعة", opening_stock="1.5",
+        )
+
+
 def test_duplicate_barcodes_are_rejected_case_insensitively(session):
     create_product(session, sku="A-1", name="صنف أول", sale_price=1, barcode="ABC-123")
     with pytest.raises(ValueError, match="الباركود مستخدم"):
