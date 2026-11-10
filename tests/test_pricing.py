@@ -25,3 +25,15 @@ def test_invoice_total_rejects_discount_above_subtotal():
 
 def test_money_rounds_half_up():
     assert money("1.005") == Decimal("1.01")
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "-Infinity"])
+def test_money_rejects_non_finite_values(value):
+    with pytest.raises(ValueError, match="محدوداً"):
+        money(value)
+
+
+def test_line_total_rejects_non_finite_quantity():
+    with pytest.raises(ValueError, match="محدوداً"):
+        line_total("5", "NaN")
+
