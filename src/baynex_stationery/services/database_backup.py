@@ -7,6 +7,7 @@ from __future__ import annotations
 import os
 import sqlite3
 import tempfile
+from contextlib import closing
 from pathlib import Path
 
 
@@ -37,10 +38,11 @@ def _copy_database_atomically(source: Path, destination: Path) -> Path:
     os.close(descriptor)
     temporary = Path(temporary_name)
     try:
-        with _open_read_only(source) as source_connection:
-            with sqlite3.connect(temporary) as destination_connection:
+        with closing(_open_read_only(source)) as source_connection:
+            with closing(sqlite3.connect(temporary)) as destination_connection:
                 source_connection.backup(destination_connection)
                 _assert_integrity(destination_connection)
+                destination_connection.commit()
         os.replace(temporary, destination)
         return destination
     except Exception:
