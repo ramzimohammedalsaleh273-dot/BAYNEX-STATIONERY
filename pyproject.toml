@@ -23,6 +23,9 @@ baynex-stationery = "baynex_stationery.app:run"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+"baynex_stationery.migrations" = ["script.py.mako"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
