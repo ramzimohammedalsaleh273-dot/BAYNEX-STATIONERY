@@ -23,7 +23,8 @@ def _non_negative(value: Decimal, label: str, places: str) -> Decimal:
         raise ValueError(f"{label} لا يمكن أن يكون سالباً")
     if result != result.quantize(Decimal(places)):
         scale = len(places.partition(".")[2])
-        raise ValueError(f"{label} يقبل حتى {scale} خانات عشرية")
+        scale_text = {2: "خانتين", 3: "ثلاث خانات"}.get(scale, f"{scale} خانات")
+        raise ValueError(f"{label} يقبل حتى {scale_text} عشرية")
     return result
 
 
