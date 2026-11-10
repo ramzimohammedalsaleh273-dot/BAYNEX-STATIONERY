@@ -38,11 +38,13 @@ def _copy_database_atomically(source: Path, destination: Path) -> Path:
     os.close(descriptor)
     temporary = Path(temporary_name)
     try:
-        with closing(_open_read_only(source)) as source_connection:
-            with closing(sqlite3.connect(temporary)) as destination_connection:
-                source_connection.backup(destination_connection)
-                _assert_integrity(destination_connection)
-                destination_connection.commit()
+        with (
+            closing(_open_read_only(source)) as source_connection,
+            closing(sqlite3.connect(temporary)) as destination_connection,
+        ):
+            source_connection.backup(destination_connection)
+            _assert_integrity(destination_connection)
+            destination_connection.commit()
         os.replace(temporary, destination)
         return destination
     except Exception:
