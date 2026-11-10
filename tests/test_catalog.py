@@ -1,10 +1,23 @@
+import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-import pytest
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.services.catalog import create_category, create_unit, list_categories, list_units, set_category_active
-from baynex_stationery.services.products import add_product_barcode, archive_product, create_product, find_product_by_barcode, list_products, update_product
+from baynex_stationery.services.catalog import (
+    create_category,
+    create_unit,
+    list_categories,
+    list_units,
+    set_category_active,
+)
+from baynex_stationery.services.products import (
+    add_product_barcode,
+    archive_product,
+    create_product,
+    find_product_by_barcode,
+    list_products,
+    update_product,
+)
 
 @pytest.fixture
 def session():

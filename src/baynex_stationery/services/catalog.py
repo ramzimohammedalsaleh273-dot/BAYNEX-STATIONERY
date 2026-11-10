@@ -1,8 +1,11 @@
 """Category and unit-of-measure application services."""
 from __future__ import annotations
+
 import hashlib
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
 from baynex_stationery.db.models import Category, UnitOfMeasure
 
 def _required(value: str, label: str, limit: int) -> str:

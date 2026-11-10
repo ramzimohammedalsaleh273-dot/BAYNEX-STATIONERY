@@ -1,15 +1,35 @@
 """Arabic right-to-left catalog workspace for products, categories and units."""
 from __future__ import annotations
+
 from decimal import Decimal, InvalidOperation
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QInputDialog,
-    QLabel, QLineEdit, QMainWindow, QMessageBox, QPushButton, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 from sqlalchemy.exc import SQLAlchemyError
+
 from baynex_stationery.db.session import SessionLocal
-from baynex_stationery.services.catalog import create_category, create_unit, list_categories, list_units
+from baynex_stationery.services.catalog import (
+    create_category,
+    create_unit,
+    list_categories,
+    list_units,
+)
 from baynex_stationery.services.products import create_product, list_products
 
 class ProductDialog(QDialog):

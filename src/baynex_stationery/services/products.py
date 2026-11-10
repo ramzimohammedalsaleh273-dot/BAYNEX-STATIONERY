@@ -1,9 +1,12 @@
 """Product catalog services with normalized SKU and barcode handling."""
 from __future__ import annotations
+
 import re
 from decimal import Decimal
+
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
+
 from baynex_stationery.db.models import Category, Product, ProductBarcode, UnitOfMeasure
 from baynex_stationery.domain.pricing import decimal_value, money
 

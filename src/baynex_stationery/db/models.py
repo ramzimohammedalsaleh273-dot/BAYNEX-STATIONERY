@@ -1,9 +1,23 @@
 """Relational models for the stationery catalog and sales foundation."""
 from __future__ import annotations
+
 from datetime import UTC, datetime
 from decimal import Decimal
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String, Text, UniqueConstraint, func
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from baynex_stationery.db.base import Base
 
 def utc_now() -> datetime:
