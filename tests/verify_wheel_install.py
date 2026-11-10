@@ -55,7 +55,10 @@ from baynex_stationery.ui.main_window import MainWindow
 
 initialize_database()
 tables = set(inspect(engine).get_table_names())
-required_tables = {"alembic_version", "categories", "products", "sales", "sale_items", "stock_movements", "payments"}
+required_tables = {
+    "alembic_version", "categories", "products", "sales", "sale_items",
+    "stock_movements", "payments", "units", "product_barcodes",
+}
 assert required_tables.issubset(tables), tables
 with SessionLocal.begin() as session:
     create_product(session, sku="SMOKE-001", name="اختبار الحزمة", sale_price=12, opening_stock=3)
