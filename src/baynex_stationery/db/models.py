@@ -4,7 +4,7 @@ This is a first migration-managed schema. Production schema changes must use Ale
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import (
@@ -23,7 +23,7 @@ from baynex_stationery.db.base import Base
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class Category(Base):
