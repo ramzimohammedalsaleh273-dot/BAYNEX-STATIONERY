@@ -1,5 +1,4 @@
 import os
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from decimal import Decimal
 
@@ -15,6 +14,7 @@ from baynex_stationery.ui import main_window
 
 @pytest.fixture(scope="module")
 def qapp():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     return QApplication.instance() or QApplication([])
 
 
