@@ -6,7 +6,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Product
 from baynex_stationery.services.catalog import create_category, create_unit, list_categories, list_units
 from baynex_stationery.services.products import (
     create_product, get_product_by_barcode, list_products, set_product_active, update_product,
