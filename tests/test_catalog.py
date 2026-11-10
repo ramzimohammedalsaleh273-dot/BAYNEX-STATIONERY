@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -73,7 +75,7 @@ def test_quantity_precision_follows_the_selected_unit(session):
         session, sku="M-001", name="سلك", sale_price=2,
         unit="متر", opening_stock="1.234",
     )
-    assert product.stock_quantity == 1.234
+    assert product.stock_quantity == Decimal("1.234")
     with pytest.raises(ValueError, match="حسب الوحدة"):
         create_product(
             session, sku="PCS-001", name="قلم", sale_price=2,
