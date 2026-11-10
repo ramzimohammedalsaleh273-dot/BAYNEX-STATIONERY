@@ -32,6 +32,7 @@ from baynex_stationery.services.catalog import (
 )
 from baynex_stationery.services.products import create_product, list_products
 
+
 class ProductDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)

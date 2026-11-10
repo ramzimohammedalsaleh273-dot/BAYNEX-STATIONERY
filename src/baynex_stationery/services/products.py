@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 from baynex_stationery.db.models import Category, Product, ProductBarcode, UnitOfMeasure
 from baynex_stationery.domain.pricing import decimal_value, money
 
+
 def _text(value: str, label: str, limit: int) -> str:
     cleaned = value.strip()
     if not cleaned:

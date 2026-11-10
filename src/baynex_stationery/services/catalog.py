@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.models import Category, UnitOfMeasure
 
+
 def _required(value: str, label: str, limit: int) -> str:
     cleaned = value.strip()
     if not cleaned:

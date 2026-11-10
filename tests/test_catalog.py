@@ -19,6 +19,7 @@ from baynex_stationery.services.products import (
     update_product,
 )
 
+
 @pytest.fixture
 def session():
     engine = create_engine("sqlite:///:memory:")
