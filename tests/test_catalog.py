@@ -57,9 +57,8 @@ def test_product_category_unit_barcode_and_low_stock_search(session):
 
 def test_duplicate_barcode_is_rejected_by_database(session):
     create_product(session, sku="A", name="أ", sale_price=Decimal("1"), barcode="123")
-    create_product(session, sku="B", name="ب", sale_price=Decimal("1"), barcode="123")
     with pytest.raises(IntegrityError):
-        session.flush()
+        create_product(session, sku="B", name="ب", sale_price=Decimal("1"), barcode="123")
 
 
 def test_product_update_and_soft_deactivation(session):
