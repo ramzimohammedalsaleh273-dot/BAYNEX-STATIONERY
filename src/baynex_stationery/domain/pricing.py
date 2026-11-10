@@ -1,5 +1,5 @@
 """Deterministic money calculations using Decimal."""
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 CENT = Decimal("0.01")
 
@@ -18,8 +18,11 @@ def line_total(unit_price: Decimal | str, quantity: Decimal | str) -> Decimal:
     return money(price * qty)
 
 
-def invoice_total(subtotal: Decimal | str, discount: Decimal | str = "0",
-                  tax_rate: Decimal | str = "0") -> Decimal:
+def invoice_total(
+    subtotal: Decimal | str,
+    discount: Decimal | str = "0",
+    tax_rate: Decimal | str = "0",
+) -> Decimal:
     base = money(subtotal)
     discount_value = money(discount)
     rate = Decimal(str(tax_rate))
