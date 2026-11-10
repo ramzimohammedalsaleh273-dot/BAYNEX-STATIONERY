@@ -9,7 +9,7 @@ description = "Arabic-first offline desktop ERP foundation for stationery and pr
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-  "PySide6>=6.7,<7",
+  "PySide6-Essentials>=6.7,<7",
   "SQLAlchemy>=2.0,<3",
   "alembic>=1.13,<2",
 ]
