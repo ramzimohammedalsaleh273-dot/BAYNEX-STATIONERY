@@ -2,6 +2,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
 
+
 def test_fresh_database_migrates_to_head(tmp_path):
     database = tmp_path / "migration-test.sqlite3"
     config = Config("alembic.ini")
