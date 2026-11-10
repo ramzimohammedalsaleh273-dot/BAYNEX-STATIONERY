@@ -25,6 +25,16 @@ python main.py
 .\.venv\Scripts\python.exe main.py
 ```
 
+## تشغيل نسخة Windows من المصدر
+
+بعد تنزيل المشروع وتثبيت Python 3.11 أو أحدث، افتح PowerShell داخل مجلد المشروع وشغّل:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run_windows.ps1
+```
+
+يقوم السكربت بإنشاء بيئة Python افتراضية وتثبيت الاعتماديات ثم تشغيل التطبيق. يحتاج اتصال إنترنت عند التثبيت الأول لتنزيل المكتبات؛ هذا ليس ملف EXE مستقلاً بعد.
+
 ## الاختبارات
 
 ```powershell
