@@ -42,14 +42,16 @@ with tempfile.TemporaryDirectory(prefix="baynex-wheel-smoke-") as data_dir:
     environment = os.environ.copy()
     environment["BAYNEX_DATA_DIR"] = data_dir
     environment["PYTHONPATH"] = str(install_target)
+    environment["QT_QPA_PLATFORM"] = "offscreen"
     smoke = """
 from pathlib import Path
-from sqlalchemy import inspect, select
-from sqlalchemy.orm import Session
+from PySide6.QtWidgets import QApplication
+from sqlalchemy import inspect
 from baynex_stationery.app import run
 from baynex_stationery.config import DATABASE_PATH
 from baynex_stationery.db.session import SessionLocal, engine, initialize_database
 from baynex_stationery.services.products import create_product, list_products
+from baynex_stationery.ui.main_window import MainWindow
 
 initialize_database()
 tables = set(inspect(engine).get_table_names())
@@ -62,6 +64,13 @@ with SessionLocal() as session:
     assert len(products) == 1 and products[0].sku == "SMOKE-001"
 assert Path(DATABASE_PATH).is_file()
 assert callable(run)
+app = QApplication([])
+window = MainWindow()
+window.show()
+app.processEvents()
+assert window.table.rowCount() == 1
+window.close()
+app.quit()
 print("WHEEL_INSTALL_SMOKE_OK")
 """
     result = subprocess.run(
