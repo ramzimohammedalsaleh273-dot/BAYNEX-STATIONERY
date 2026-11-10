@@ -6,9 +6,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.services.catalog import create_category, create_unit, list_categories, list_units
+from baynex_stationery.services.catalog import (
+    create_category,
+    create_unit,
+    list_categories,
+    list_units,
+)
 from baynex_stationery.services.products import (
-    create_product, get_product_by_barcode, list_products, set_product_active, update_product,
+    create_product,
+    get_product_by_barcode,
+    list_products,
+    set_product_active,
+    update_product,
 )
 
 
@@ -41,8 +50,8 @@ def test_product_category_unit_barcode_and_low_stock_search(session):
     category = create_category(session, "أقلام")
     unit = create_unit(session, "علبة", "علبة")
     product = create_product(
-        session, sku="PEN-01", name="قلم أزرق", sale_price=Decimal("5"),
-        opening_stock=Decimal(2), minimum_stock=Decimal("3"),
+        session, sku="PEN-01", name="قلم أزرق", sale_price=Decimal(5),
+        opening_stock=Decimal(2), minimum_stock=Decimal(3),
         barcode="6281234567890", category_id=category.id, unit_id=unit.id,
     )
     session.commit()
