@@ -1,5 +1,5 @@
 """Deterministic money calculations using finite Decimal values."""
-from decimal import InvalidOperation, ROUND_HALF_UP, Decimal
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 CENT = Decimal("0.01")
 
