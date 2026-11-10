@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 
 import pytest
 
@@ -6,14 +7,15 @@ from baynex_stationery.services.database_backup import create_backup, restore_ba
 
 
 def make_database(path, value):
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection:
         connection.execute("CREATE TABLE IF NOT EXISTS records (value TEXT NOT NULL)")
         connection.execute("DELETE FROM records")
         connection.execute("INSERT INTO records(value) VALUES (?)", (value,))
+        connection.commit()
 
 
 def read_value(path):
-    with sqlite3.connect(path) as connection:
+    with closing(sqlite3.connect(path)) as connection:
         return connection.execute("SELECT value FROM records").fetchone()[0]
 
 
