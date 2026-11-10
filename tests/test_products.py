@@ -25,7 +25,7 @@ def test_create_and_list_product(session):
         name="دفتر",
         sale_price=Decimal("12.50"),
         cost_price=Decimal("8.00"),
-        opening_stock=Decimal("15"),
+        opening_stock=Decimal(15),
         barcode="628000000001",
     )
     session.commit()
@@ -41,11 +41,11 @@ def test_create_and_list_product(session):
 @pytest.mark.parametrize(
     ("sku", "name", "sale_price", "cost_price", "opening_stock"),
     [
-        ("", "دفتر", Decimal("1"), Decimal("1"), Decimal("1")),
-        ("SKU-2", " ", Decimal("1"), Decimal("1"), Decimal("1")),
-        ("SKU-3", "قلم", Decimal("-1"), Decimal("1"), Decimal("1")),
-        ("SKU-4", "قلم", Decimal("1"), Decimal("-1"), Decimal("1")),
-        ("SKU-5", "قلم", Decimal("1"), Decimal("1"), Decimal("-1")),
+        ("", "دفتر", Decimal(1), Decimal(1), Decimal(1)),
+        ("SKU-2", " ", Decimal(1), Decimal(1), Decimal(1)),
+        ("SKU-3", "قلم", Decimal(-1), Decimal(1), Decimal(1)),
+        ("SKU-4", "قلم", Decimal(1), Decimal(-1), Decimal(1)),
+        ("SKU-5", "قلم", Decimal(1), Decimal(1), Decimal(-1)),
     ],
 )
 def test_create_product_rejects_invalid_values(
