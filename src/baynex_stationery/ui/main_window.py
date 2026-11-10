@@ -5,10 +5,21 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QDialog, QDialogButtonBox, QFormLayout, QHBoxLayout, QLabel, QLineEdit,
-    QMainWindow, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
-    QVBoxLayout, QWidget,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
+from sqlalchemy.exc import SQLAlchemyError
 
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.products import create_product, list_products
@@ -20,15 +31,21 @@ class ProductDialog(QDialog):
         self.setWindowTitle("إضافة صنف")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
         self.fields = {
-            "sku": QLineEdit(), "name": QLineEdit(), "sale": QLineEdit("0.00"),
-            "cost": QLineEdit("0.00"), "stock": QLineEdit("0"),
+            "sku": QLineEdit(),
+            "name": QLineEdit(),
+            "sale": QLineEdit("0.00"),
+            "cost": QLineEdit("0.00"),
+            "stock": QLineEdit("0"),
             "barcode": QLineEdit(),
         }
         form = QFormLayout()
         for key, label in [
-            ("sku", "رمز الصنف *"), ("name", "اسم الصنف *"),
-            ("sale", "سعر البيع"), ("cost", "سعر التكلفة"),
-            ("stock", "الرصيد الافتتاحي"), ("barcode", "الباركود"),
+            ("sku", "رمز الصنف *"),
+            ("name", "اسم الصنف *"),
+            ("sale", "سعر البيع"),
+            ("cost", "سعر التكلفة"),
+            ("stock", "الرصيد الافتتاحي"),
+            ("barcode", "الباركود"),
         ]:
             form.addRow(label, self.fields[key])
         buttons = QDialogButtonBox(
@@ -97,8 +114,12 @@ class MainWindow(QMainWindow):
             self.table.setRowCount(len(products))
             for row, product in enumerate(products):
                 values = [
-                    product.sku, product.barcode or "", product.name, product.unit,
-                    f"{product.sale_price:.2f}", f"{product.stock_quantity:g}",
+                    product.sku,
+                    product.barcode or "",
+                    product.name,
+                    product.unit,
+                    f"{product.sale_price:.2f}",
+                    f"{product.stock_quantity:g}",
                 ]
                 for column, value in enumerate(values):
                     self.table.setItem(row, column, QTableWidgetItem(str(value)))
@@ -112,5 +133,5 @@ class MainWindow(QMainWindow):
             with SessionLocal.begin() as session:
                 create_product(session, **values)
             self.refresh_products()
-        except (ValueError, Exception) as exc:
+        except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر حفظ الصنف", str(exc))
