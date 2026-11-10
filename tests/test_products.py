@@ -60,3 +60,26 @@ def test_create_product_rejects_invalid_values(
             cost_price=cost_price,
             opening_stock=opening_stock,
         )
+
+
+@pytest.mark.parametrize("value", [Decimal("NaN"), Decimal("Infinity")])
+def test_create_product_rejects_non_finite_price(session, value):
+    with pytest.raises(ValueError, match="محدوداً"):
+        create_product(
+            session,
+            sku="INVALID-PRICE",
+            name="صنف غير صالح",
+            sale_price=value,
+        )
+
+
+def test_create_product_rejects_excess_stock_precision(session):
+    with pytest.raises(ValueError, match="ثلاث خانات"):
+        create_product(
+            session,
+            sku="INVALID-STOCK",
+            name="رصيد غير صالح",
+            sale_price=Decimal(1),
+            opening_stock=Decimal("1.0001"),
+        )
+
