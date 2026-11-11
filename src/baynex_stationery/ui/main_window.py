@@ -36,6 +36,7 @@ from baynex_stationery.services.inventory import (
     create_inventory_transfer,
     create_warehouse,
     ensure_default_warehouse,
+    get_stock_balance,
     issue_stock,
     list_stock_movements,
     list_warehouses,
@@ -43,6 +44,7 @@ from baynex_stationery.services.inventory import (
     post_inventory_transfer,
     receive_stock,
     set_inventory_count_line,
+    set_warehouse_active,
 )
 from baynex_stationery.services.products import (
     create_product,
@@ -150,6 +152,7 @@ class MainWindow(QMainWindow):
         self.refresh_button = QPushButton("تحديث")
         self.warehouse = QComboBox()
         self.add_warehouse_button = QPushButton("إضافة مستودع")
+        self.deactivate_warehouse_button = QPushButton("إيقاف المستودع")
         self.receive_button = QPushButton("إدخال مخزون")
         self.issue_button = QPushButton("صرف مخزون")
         self.transfer_button = QPushButton("تحويل")
@@ -158,7 +161,7 @@ class MainWindow(QMainWindow):
         for widget in (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
-            self.warehouse, self.add_warehouse_button, self.receive_button,
+            self.warehouse, self.add_warehouse_button, self.deactivate_warehouse_button, self.receive_button,
             self.issue_button, self.transfer_button, self.count_button,
             self.movements_button,
         ):
@@ -188,12 +191,14 @@ class MainWindow(QMainWindow):
         self.unit_button.clicked.connect(self.add_unit)
         self.refresh_button.clicked.connect(self.refresh_products)
         self.add_warehouse_button.clicked.connect(self.add_warehouse)
+        self.deactivate_warehouse_button.clicked.connect(self.deactivate_warehouse)
         self.receive_button.clicked.connect(self.receive_selected)
         self.issue_button.clicked.connect(self.issue_selected)
         self.transfer_button.clicked.connect(self.transfer_selected)
         self.count_button.clicked.connect(self.count_selected)
         self.movements_button.clicked.connect(self.show_movements)
         self.search.textChanged.connect(self.refresh_products)
+        self.warehouse.currentIndexChanged.connect(self.refresh_products)
         self._refresh_warehouses()
         self.table.doubleClicked.connect(self.edit_product)
         self.refresh_products()
@@ -235,6 +240,25 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "المستودعات", "تم إنشاء المستودع")
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر إنشاء المستودع", str(exc))
+
+    def deactivate_warehouse(self):
+        warehouse_id = self.warehouse.currentData()
+        if warehouse_id is None:
+            return
+        answer = QMessageBox.question(
+            self, "إيقاف المستودع",
+            "سيتم إيقاف المستودع إذا لم يكن افتراضياً ولا يحتوي على أرصدة. هل تريد المتابعة؟",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                set_warehouse_active(session, warehouse_id, False)
+            self._refresh_warehouses()
+            self.refresh_products()
+            QMessageBox.information(self, "المستودعات", "تم إيقاف المستودع")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر إيقاف المستودع", str(exc))
 
     def _manual_quantity(self, title):
         value, accepted = QInputDialog.getText(self, title, "أدخل الكمية (حتى 3 خانات عشرية):")
@@ -380,7 +404,7 @@ class MainWindow(QMainWindow):
                     product.category.name if product.category else "—",
                     product.unit_record.symbol if product.unit_record else product.unit,
                     f"{product.cost_price:.2f}", f"{product.sale_price:.2f}",
-                    f"{product.stock_quantity:g}",
+                    f"{get_stock_balance(session, product.id, self.warehouse.currentData()):g}",
                 ]
                 for column, value in enumerate(values):
                     cell = QTableWidgetItem(str(value))
@@ -400,8 +424,10 @@ class MainWindow(QMainWindow):
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
         try:
+            values = dialog.values()
+            values["opening_warehouse_id"] = self.warehouse.currentData()
             with SessionLocal.begin() as session:
-                create_product(session, **dialog.values())
+                create_product(session, **values)
             self.refresh_products()
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر حفظ الصنف", str(exc))
