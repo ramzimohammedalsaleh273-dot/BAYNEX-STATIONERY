@@ -665,7 +665,10 @@ class POSDialog(QDialog):
                 sale = session.get(Sale, selected_id)
                 if sale is None or sale.status != "held":
                     raise ValueError("الفاتورة المعلقة لم تعد متاحة للاسترجاع")
-                sale.status = "draft"
+                # Archive the held snapshot and issue a unique working invoice number.
+                # The original number remains traceable in the held record and return history.
+                sale.status = "cancelled"
+                payload["number"] = f"{payload['number'][:30]}-R{selected_id}"
             self.reload_products()
             restored = {}
             for product_id, quantity, price, discount in payload["lines"]:
