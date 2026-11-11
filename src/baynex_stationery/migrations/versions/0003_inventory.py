@@ -5,8 +5,8 @@ legacy movements to the default warehouse. The opening movement is calculated as
 current cached stock minus the sum of legacy movements, so the resulting ledger
 equals the pre-migration balance without replaying historical sales.
 """
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0003_inventory"
 down_revision = "0002_catalog"
