@@ -6,8 +6,19 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDateTimeEdit, QDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
-    QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QComboBox,
+    QDateTimeEdit,
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
 )
 from sqlalchemy.exc import SQLAlchemyError
 
