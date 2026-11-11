@@ -321,7 +321,8 @@ class POSDialog(QDialog):
         ):
             shortcut = QShortcut(QKeySequence(sequence), self)
             shortcut.activated.connect(callback)
-        self.barcode.setFocus()
+        self.cart_table.setCurrentCell(0, 1)
+        self.cart_table.setFocus()
 
     def _fill_product_picker(self):
         self.product_picker.clear()
@@ -377,7 +378,8 @@ class POSDialog(QDialog):
             QMessageBox.information(self, "اختيار الصنف", "اختر صنفاً صحيحاً من قائمة الأصناف.")
             return
         self.add_product(int(product_id))
-        self.barcode.setFocus()
+        self.cart_table.setCurrentCell(len(self.cart), 1)
+        self.cart_table.setFocus()
 
     def add_product(self, product_id: int):
         product = self.product_by_id.get(product_id)
@@ -423,7 +425,7 @@ class POSDialog(QDialog):
                     cell.setData(Qt.ItemDataRole.UserRole, product_id)
                 if column in (5, 6, 7):
                     cell.setFlags(cell.flags() | Qt.ItemFlag.ItemIsEditable)
-                if column not in (1, 2, 5, 6, 7):
+                if column not in (5, 6, 7):
                     cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
         self.cart_table.blockSignals(False)
@@ -515,7 +517,8 @@ class POSDialog(QDialog):
         self.invoice_date.setText(datetime.now().strftime("%d/%m/%Y %H:%M"))
         self.status_label.setText("فاتورة جديدة")
         self.render_cart()
-        self.barcode.setFocus()
+        self.cart_table.setCurrentCell(0, 1)
+        self.cart_table.setFocus()
 
     def hold_ticket(self):
         if not self.cart:
@@ -624,7 +627,8 @@ class POSDialog(QDialog):
             self.new_ticket_after_hold()
             self.status_label.setText("تم ترحيل الفاتورة بنجاح")
             self.render_cart()
-            self.barcode.setFocus()
+            self.cart_table.setCurrentCell(0, 1)
+            self.cart_table.setFocus()
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر إتمام البيع", str(exc))
 
