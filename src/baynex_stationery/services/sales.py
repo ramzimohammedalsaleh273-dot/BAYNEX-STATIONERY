@@ -57,7 +57,7 @@ def create_sale(
     if warehouse is None or not warehouse.is_active:
         raise ValueError("المستودع غير موجود أو غير نشط")
     if not lines:
-        raise ValueError("لا يمكن حفظ فاتورة دون أصناف")
+        raise ValueError("لا يمكن حفظ فاتورة دون صنف واحد على الأقل")
 
     subtotal = Decimal("0.00")
     item_rows: list[SaleItem] = []
