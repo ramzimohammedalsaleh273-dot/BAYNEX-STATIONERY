@@ -42,8 +42,10 @@ def post_sale(
     for row in items:
         product_id = int(row["product_id"])
         quantity = Decimal(str(row["quantity"]))
-        if quantity <= 0:
-            raise ValueError("الكمية يجب أن تكون أكبر من صفر")
+        if not quantity.is_finite() or quantity <= 0:
+            raise ValueError("الكمية يجب أن تكون رقماً محدوداً وأكبر من صفر")
+        if quantity != quantity.quantize(Decimal("0.001")):
+            raise ValueError("الكمية تقبل حتى ثلاث خانات عشرية")
         required[product_id] += quantity
         normalized.append((product_id, quantity))
 
