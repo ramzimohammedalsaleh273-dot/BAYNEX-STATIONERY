@@ -73,3 +73,13 @@ def test_inventory_movements_dialog_renders_real_movement_rows():
     assert dialog.table.item(0, 2).text() == "+5"
     assert dialog.table.item(0, 3).text() == "إدخال اختبار"
 
+
+
+
+def test_classic_erp_theme_has_compact_toolbar_and_grid_palette():
+    from baynex_stationery.ui.theme import BAYNEX_STYLESHEET
+
+    assert "QToolBar" in BAYNEX_STYLESHEET
+    assert "QHeaderView::section" in BAYNEX_STYLESHEET
+    assert "#FFFEEF" in BAYNEX_STYLESHEET
+    assert "qlineargradient" in BAYNEX_STYLESHEET
