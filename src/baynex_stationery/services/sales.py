@@ -5,8 +5,13 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, Warehouse
 from baynex_stationery.domain.pricing import invoice_total, line_total, money
+from baynex_stationery.services.inventory import (
+    ensure_default_warehouse,
+    get_stock_balance,
+    record_stock_movement,
+)
 
 
 def post_sale(
@@ -18,6 +23,7 @@ def post_sale(
     tax_rate: Decimal = Decimal(0),
     payment_method: str = "cash",
     paid_amount: Decimal | None = None,
+    warehouse_id: int | None = None,
 ) -> Sale:
     """Post a sale, decrement stock and record immutable movement/payment rows."""
     if not number.strip():
@@ -25,14 +31,21 @@ def post_sale(
     if not items:
         raise ValueError("الفاتورة يجب أن تحتوي على صنف واحد على الأقل")
 
+    warehouse = session.get(Warehouse, warehouse_id) if warehouse_id is not None else ensure_default_warehouse(session)
+    if warehouse is None or not warehouse.is_active:
+        raise ValueError("المستودع غير موجود أو غير نشط")
+    warehouse_id = warehouse.id
+
     normalized = []
     required: dict[int, Decimal] = defaultdict(lambda: Decimal(0))
     subtotal = Decimal(0)
     for row in items:
         product_id = int(row["product_id"])
         quantity = Decimal(str(row["quantity"]))
-        if quantity <= 0:
-            raise ValueError("الكمية يجب أن تكون أكبر من صفر")
+        if not quantity.is_finite() or quantity <= 0:
+            raise ValueError("الكمية يجب أن تكون رقماً محدوداً وأكبر من صفر")
+        if quantity != quantity.quantize(Decimal("0.001")):
+            raise ValueError("الكمية تقبل حتى ثلاث خانات عشرية")
         required[product_id] += quantity
         normalized.append((product_id, quantity))
 
@@ -49,7 +62,7 @@ def post_sale(
         product = products[product_id]
         if not product.is_active:
             raise ValueError(f"الصنف غير نشط: {product.name}")
-        if product.stock_quantity < quantity:
+        if get_stock_balance(session, product_id, warehouse_id) < quantity:
             raise ValueError(f"الرصيد غير كافٍ للصنف: {product.name}")
 
     sale_lines = []
@@ -77,12 +90,12 @@ def post_sale(
         discount=discount_value,
         tax_amount=tax_value,
         total=total,
+        warehouse_id=warehouse_id,
     )
     session.add(sale)
     session.flush()
 
     for product, quantity, amount in sale_lines:
-        product.stock_quantity -= quantity
         session.add(
             SaleItem(
                 sale_id=sale.id,
@@ -93,15 +106,11 @@ def post_sale(
                 line_total=amount,
             )
         )
-        session.add(
-            StockMovement(
-                product_id=product.id,
-                movement_type="sale",
-                quantity_delta=-quantity,
-                reference_type="sale",
-                reference_id=sale.id,
-                note=f"فاتورة {sale.number}",
-            )
+        record_stock_movement(
+            session, product_id=product.id, warehouse_id=warehouse_id,
+            quantity_delta=-quantity, movement_type="sale",
+            reference_type="sale", reference_id=sale.id,
+            note=f"فاتورة {sale.number}",
         )
 
     if paid:

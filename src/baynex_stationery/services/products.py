@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from baynex_stationery.db.models import Category, Product, Unit
+from baynex_stationery.db.models import Category, Product, Unit, Warehouse
 from baynex_stationery.domain.pricing import decimal_value, money
 
 
@@ -67,6 +67,7 @@ def create_product(
     sale_price: Decimal,
     cost_price: Decimal = Decimal(0),
     opening_stock: Decimal = Decimal(0),
+    opening_warehouse_id: int | None = None,
     barcode: str | None = None,
     unit: str = "قطعة",
     unit_id: int | None = None,
@@ -99,6 +100,24 @@ def create_product(
     )
     session.add(product)
     session.flush()
+    if opening_stock:
+        from baynex_stationery.services.inventory import (
+            ensure_default_warehouse,
+            record_stock_movement,
+        )
+
+        warehouse = (
+            session.get(Warehouse, opening_warehouse_id)
+            if opening_warehouse_id is not None else ensure_default_warehouse(session)
+        )
+        if warehouse is None or not warehouse.is_active:
+            raise ValueError("مستودع الرصيد الافتتاحي غير موجود أو غير نشط")
+        record_stock_movement(
+            session, product_id=product.id, warehouse_id=warehouse.id,
+            quantity_delta=opening_stock, movement_type="opening",
+            note="رصيد افتتاحي عند إنشاء الصنف",
+            reference_type="product_opening", reference_id=product.id,
+        )
     return product
 
 
