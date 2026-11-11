@@ -67,6 +67,7 @@ def create_product(
     sale_price: Decimal,
     cost_price: Decimal = Decimal(0),
     opening_stock: Decimal = Decimal(0),
+    opening_warehouse_id: int | None = None,
     barcode: str | None = None,
     unit: str = "قطعة",
     unit_id: int | None = None,
@@ -102,7 +103,12 @@ def create_product(
     if opening_stock:
         from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
 
-        warehouse = ensure_default_warehouse(session)
+        warehouse = (
+            session.get(__import__("baynex_stationery.db.models", fromlist=["Warehouse"]).Warehouse, opening_warehouse_id)
+            if opening_warehouse_id is not None else ensure_default_warehouse(session)
+        )
+        if warehouse is None or not warehouse.is_active:
+            raise ValueError("مستودع الرصيد الافتتاحي غير موجود أو غير نشط")
         record_stock_movement(
             session, product_id=product.id, warehouse_id=warehouse.id,
             quantity_delta=opening_stock, movement_type="opening",
