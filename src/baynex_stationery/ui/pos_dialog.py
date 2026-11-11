@@ -30,7 +30,9 @@ from PySide6.QtWidgets import (
 from sqlalchemy.exc import SQLAlchemyError
 
 from baynex_stationery.db.session import SessionLocal
-from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
+from baynex_stationery.services.inventory import (
+    ensure_default_warehouse, get_stock_balance, list_warehouses,
+)
 from baynex_stationery.services.pos import calculate_line, calculate_totals, decimal_input
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, post_sale
@@ -163,14 +165,16 @@ class POSDialog(QDialog):
         for label, value in (("نقدي", "cash"), ("شبكة / بطاقة", "card"),
                              ("تحويل", "transfer"), ("آجل", "credit")):
             self.payment_method.addItem(label, value)
-        self.customer = QLineEdit("عميل نقدي")
-        self.customer_phone = QLineEdit()
+        self.customer = QLineEdit()
+        self.customer.setPlaceholderText("اختياري — اتركه فارغاً للعميل النقدي")
         self.customer.setMinimumWidth(190)
+        self.customer_phone = QLineEdit()
+        self.customer_phone.setPlaceholderText("اختياري")
 
         fields = [
             ("رقم الفاتورة", self.invoice_no), ("التاريخ", self.invoice_date),
             ("المستودع", self.warehouse), ("طريقة الدفع", self.payment_method),
-            ("اسم العميل", self.customer), ("رقم الهاتف", self.customer_phone),
+            ("العميل (اختياري)", self.customer), ("الهاتف (اختياري)", self.customer_phone),
         ]
         for index, (caption, widget) in enumerate(fields):
             row, col = divmod(index, 3)
@@ -317,7 +321,9 @@ class POSDialog(QDialog):
         self.qty_button.clicked.connect(self.edit_quantity)
         self.clear_button.clicked.connect(self.new_ticket)
         self.pay_button.clicked.connect(self.checkout)
-        self.customer.textChanged.connect(self.customer_summary.setText)
+        self.customer.textChanged.connect(
+            lambda value: self.customer_summary.setText(value.strip() or "عميل نقدي")
+        )
         self.render_cart()
 
         for sequence, callback in (
@@ -398,11 +404,42 @@ class POSDialog(QDialog):
         product = self.product_by_id.get(product_id)
         if product is None:
             return
+
+        # Sale price is fixed to the catalog price; POS users cannot edit it.
+        requested_quantity = (
+            self.cart[product_id]["quantity"] + Decimal("1.000")
+            if product_id in self.cart else Decimal("1.000")
+        )
+        warehouse_id = self.warehouse.currentData()
+        try:
+            with SessionLocal() as session:
+                available = get_stock_balance(session, product_id, warehouse_id)
+        except SQLAlchemyError as exc:
+            QMessageBox.warning(self, "تعذر قراءة المخزون", str(exc))
+            return
+
+        projected_balance = available - requested_quantity
+        if requested_quantity > available:
+            QMessageBox.warning(
+                self, "تنبيه نقص المخزون",
+                f"الصنف: {product.name}\\n"
+                f"الرصيد المتاح في المستودع: {available:.3f}\\n"
+                f"الكمية المطلوبة في الفاتورة: {requested_quantity:.3f}\\n"
+                "لا يمكن ترحيل الفاتورة قبل توفير الكمية المطلوبة.",
+            )
+        elif product.minimum_stock > 0 and projected_balance <= product.minimum_stock:
+            QMessageBox.warning(
+                self, "تنبيه حد المخزون",
+                f"بعد هذه الإضافة سيصبح الرصيد المتوقع للصنف «{product.name}» "
+                f"{projected_balance:.3f}، وهو عند حد إعادة الطلب "
+                f"({product.minimum_stock:.3f}) أو أقل.",
+            )
+
         if product_id in self.cart:
-            self.cart[product_id]["quantity"] += Decimal("1.000")
+            self.cart[product_id]["quantity"] = requested_quantity
         else:
             self.cart[product_id] = {
-                "product": product, "quantity": Decimal("1.000"),
+                "product": product, "quantity": requested_quantity,
                 "unit_price": product.sale_price, "discount": Decimal("0.00"),
             }
         self.render_cart()
@@ -436,9 +473,9 @@ class POSDialog(QDialog):
                 cell.setText(value)
                 if column == 1:
                     cell.setData(Qt.ItemDataRole.UserRole, product_id)
-                if column in (5, 6, 7):
+                if column in (5, 7):
                     cell.setFlags(cell.flags() | Qt.ItemFlag.ItemIsEditable)
-                if column not in (5, 6, 7):
+                if column not in (5, 7):
                     cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
         self.cart_table.blockSignals(False)
@@ -465,7 +502,7 @@ class POSDialog(QDialog):
             self.status_label.setText(f"تمت إضافة: {product.name} — أدخل الصنف التالي")
             return
 
-        if item.column() not in (5, 6, 7):
+        if item.column() not in (5, 7):
             return
         key_item = self.cart_table.item(item.row(), 1)
         product_id = key_item.data(Qt.ItemDataRole.UserRole) if key_item else None
@@ -524,7 +561,7 @@ class POSDialog(QDialog):
         ) != QMessageBox.StandardButton.Yes:
             return
         self.cart.clear()
-        self.customer.setText("عميل نقدي")
+        self.customer.clear()
         self.customer_phone.clear()
         self.invoice_note.clear()
         self.invoice_no.setText(f"POS-{datetime.now():%Y%m%d-%H%M%S}")
