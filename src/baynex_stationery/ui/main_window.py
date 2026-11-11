@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFrame,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -264,14 +265,36 @@ class MainWindow(QMainWindow):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
 
         root = QWidget()
+        root.setObjectName("applicationRoot")
         layout = QVBoxLayout(root)
+        layout.setContentsMargins(18, 14, 18, 12)
+        layout.setSpacing(12)
+
+        brand_bar = QFrame(root)
+        brand_bar.setObjectName("brandBar")
+        brand_layout = QHBoxLayout(brand_bar)
+        brand_layout.setContentsMargins(16, 10, 16, 10)
+        brand_text = QVBoxLayout()
+        brand_name = QLabel("BAYNEX")
+        brand_name.setObjectName("brandName")
+        brand_caption = QLabel("نظام إدارة القرطاسية والمخزون")
+        brand_caption.setObjectName("brandCaption")
+        brand_text.addWidget(brand_name)
+        brand_text.addWidget(brand_caption)
+        brand_layout.addLayout(brand_text)
+        brand_layout.addStretch(1)
+        brand_version = QLabel("نظام مكتبي متكامل")
+        brand_version.setObjectName("brandVersion")
+        brand_layout.addWidget(brand_version)
+
         heading = create_page_heading(
             "إدارة الأصناف والمخزون",
             "إدارة بيانات الأصناف والتصنيفات ووحدات القياس والباركود وأرصدة المستودعات",
             root,
         )
-        toolbar = QHBoxLayout()
         self.search = QLineEdit()
+        self.search.setClearButtonEnabled(True)
+        self.search.setMinimumWidth(220)
         self.search.setPlaceholderText("ابحث بالاسم أو الرمز أو الباركود...")
         self.add_button = QPushButton("إضافة صنف")
         self.edit_button = QPushButton("تعديل المحدد")
@@ -288,19 +311,34 @@ class MainWindow(QMainWindow):
         self.transfer_button = QPushButton("تحويل")
         self.count_button = QPushButton("جرد المستودع")
         self.movements_button = QPushButton("سجل الحركات")
+        for button in (
+            self.add_button, self.edit_button, self.deactivate_button,
+            self.category_button, self.unit_button, self.refresh_button,
+            self.add_warehouse_button, self.edit_warehouse_button,
+            self.deactivate_warehouse_button, self.receive_button, self.issue_button,
+            self.transfer_button, self.count_button, self.movements_button,
+        ):
+            button.setMinimumHeight(34)
+        self.add_button.setObjectName("primaryAction")
+        self.receive_button.setObjectName("primaryAction")
+
+        catalog_group = QGroupBox("إدارة الأصناف والتعريفات")
+        catalog_layout = QHBoxLayout(catalog_group)
+        catalog_layout.setContentsMargins(10, 12, 10, 10)
         for widget in (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
         ):
-            toolbar.addWidget(widget)
-        toolbar.addWidget(self.search, 1)
+            catalog_layout.addWidget(widget)
+        catalog_layout.addWidget(self.search, 1)
 
-        inventory_toolbar = QHBoxLayout()
+        inventory_group = QGroupBox("عمليات المستودعات والمخزون")
+        inventory_toolbar = QHBoxLayout(inventory_group)
+        inventory_toolbar.setContentsMargins(10, 12, 10, 10)
         for widget in (
             self.warehouse, self.add_warehouse_button, self.edit_warehouse_button,
-            self.deactivate_warehouse_button,
-            self.receive_button, self.issue_button, self.transfer_button,
-            self.count_button, self.movements_button,
+            self.deactivate_warehouse_button, self.receive_button, self.issue_button,
+            self.transfer_button, self.count_button, self.movements_button,
         ):
             inventory_toolbar.addWidget(widget)
 
@@ -320,11 +358,50 @@ class MainWindow(QMainWindow):
         self.table.setColumnWidth(5, 125)
         self.table.setColumnWidth(6, 125)
 
+        table_group = QGroupBox("سجل الأصناف وأرصدة المستودع")
+        table_layout = QVBoxLayout(table_group)
+        table_layout.setContentsMargins(8, 12, 8, 8)
+        table_layout.addWidget(self.table)
+
+        layout.addWidget(brand_bar)
         layout.addWidget(heading)
-        layout.addLayout(toolbar)
-        layout.addLayout(inventory_toolbar)
-        layout.addWidget(self.table)
+        layout.addWidget(catalog_group)
+        layout.addWidget(inventory_group)
+        layout.addWidget(table_group, 1)
         self.setCentralWidget(root)
+
+        file_menu = self.menuBar().addMenu("ملف")
+        refresh_action = file_menu.addAction("تحديث البيانات")
+        refresh_action.triggered.connect(self.refresh_products)
+        file_menu.addSeparator()
+        exit_action = file_menu.addAction("إغلاق النظام")
+        exit_action.triggered.connect(self.close)
+        catalog_menu = self.menuBar().addMenu("الأصناف")
+        for label, handler in (
+            ("إضافة صنف", self.add_product),
+            ("تعديل الصنف المحدد", self.edit_product),
+            ("إضافة تصنيف", self.add_category),
+            ("إضافة وحدة قياس", self.add_unit),
+        ):
+            action = catalog_menu.addAction(label)
+            action.triggered.connect(handler)
+        stock_menu = self.menuBar().addMenu("المخزون")
+        for label, handler in (
+            ("إدخال مخزون", self.receive_selected),
+            ("صرف مخزون", self.issue_selected),
+            ("تحويل مخزون", self.transfer_selected),
+            ("جرد المستودع", self.count_selected),
+            ("سجل الحركات", self.show_movements),
+        ):
+            action = stock_menu.addAction(label)
+            action.triggered.connect(handler)
+        help_menu = self.menuBar().addMenu("مساعدة")
+        about_action = help_menu.addAction("حول BAYNEX")
+        about_action.triggered.connect(
+            lambda: QMessageBox.information(
+                self, "حول BAYNEX", "BAYNEX STATIONERY\\nنظام إدارة القرطاسية والمخزون"
+            )
+        )
 
         self.add_button.clicked.connect(self.add_product)
         self.edit_button.clicked.connect(self.edit_product)
