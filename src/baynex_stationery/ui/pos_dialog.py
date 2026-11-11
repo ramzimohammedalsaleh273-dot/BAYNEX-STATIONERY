@@ -135,13 +135,9 @@ class POSDialog(QDialog):
         # Compact ERP document toolbar.
         toolbar = QHBoxLayout()
         toolbar.setSpacing(4)
-        self.new_button = QPushButton("جديد")
-        self.hold_button = QPushButton("تعليق")
-        self.restore_button = QPushButton("استرجاع")
-        self.print_button = QPushButton("طباعة")
+        self.new_button = QPushButton("فاتورة جديدة")
         self.refresh_button = QPushButton("تحديث الأصناف")
-        for button in (self.new_button, self.hold_button, self.restore_button,
-                       self.print_button, self.refresh_button):
+        for button in (self.new_button, self.refresh_button):
             button.setMinimumHeight(30)
             toolbar.addWidget(button)
         toolbar.addStretch(1)
@@ -261,7 +257,6 @@ class POSDialog(QDialog):
         totals_grid = QGridLayout(totals_box)
         self.subtotal_label = QLabel("0.00")
         self.discount_label = QLabel("0.00")
-        self.tax_label = QLabel("0.00")
         self.total_label = QLabel("0.00")
         self.total_label.setObjectName("posGrandTotal")
         self.paid_preview = QLabel("0.00")
@@ -269,7 +264,6 @@ class POSDialog(QDialog):
         for row, (caption, widget) in enumerate((
             ("القيمة قبل الخصم", self.subtotal_label),
             ("إجمالي الخصم", self.discount_label),
-            ("الضريبة", self.tax_label),
             ("الصافي المستحق", self.total_label),
             ("المبلغ المدفوع", self.paid_preview),
             ("الباقي", self.change_preview),
@@ -297,13 +291,11 @@ class POSDialog(QDialog):
 
         actions = QHBoxLayout()
         self.remove_button = QPushButton("حذف السطر")
-        self.qty_button = QPushButton("تعديل الكمية")
-        self.clear_button = QPushButton("تفريغ الفاتورة")
         self.pay_button = QPushButton("حفظ وترحيل البيع  F8")
         self.pay_button.setObjectName("primaryAction")
         self.pay_button.setMinimumHeight(38)
-        for button in (self.remove_button, self.qty_button, self.clear_button,
-                       self.hold_button, self.restore_button, self.print_button):
+        for button in (self.remove_button, self.hold_button, self.restore_button,
+                       self.print_button):
             actions.addWidget(button)
         actions.addStretch(1)
         actions.addWidget(self.pay_button)
@@ -318,8 +310,6 @@ class POSDialog(QDialog):
         self.barcode.returnPressed.connect(self.scan_barcode)
         self.product_picker.lineEdit().returnPressed.connect(self.add_selected_product)
         self.remove_button.clicked.connect(self.remove_selected)
-        self.qty_button.clicked.connect(self.edit_quantity)
-        self.clear_button.clicked.connect(self.new_ticket)
         self.pay_button.clicked.connect(self.checkout)
         self.customer.textChanged.connect(
             lambda value: self.customer_summary.setText(value.strip() or "عميل نقدي")
