@@ -8,9 +8,14 @@ from baynex_stationery.ui.components import configure_data_table, create_page_he
 from baynex_stationery.ui.main_window import ProductDialog
 
 
+_APP = None
+
+
 def _application():
+    global _APP
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    return QApplication.instance() or QApplication([])
+    _APP = QApplication.instance() or QApplication([])
+    return _APP
 
 
 def test_page_heading_has_consistent_accessible_object_names():
@@ -35,7 +40,6 @@ def test_data_table_configuration_preserves_rows_and_sets_readable_defaults():
     assert table.verticalHeader().defaultSectionSize() == 41
     assert table.horizontalHeader().minimumHeight() == 42
     assert table.horizontalHeader().stretchLastSection()
-
 
 
 def test_product_dialog_groups_related_fields_without_losing_them():
