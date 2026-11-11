@@ -9,7 +9,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
-    QInputDialog,
     QAbstractItemView,
     QComboBox,
     QCompleter,
@@ -19,6 +18,7 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -29,19 +29,20 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import joinedload
 
 from baynex_stationery.db.models import CashierEvent, Sale
-
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import (
-    ensure_default_warehouse, get_stock_balance, list_warehouses,
+    ensure_default_warehouse,
+    get_stock_balance,
+    list_warehouses,
 )
 from baynex_stationery.services.pos import calculate_line, calculate_totals, decimal_input
+from baynex_stationery.services.pos_workflows import create_sale_return, log_cashier_event
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, list_sales, post_sale
-from baynex_stationery.services.pos_workflows import create_sale_return, log_cashier_event
 from baynex_stationery.ui.components import configure_data_table
 
 
