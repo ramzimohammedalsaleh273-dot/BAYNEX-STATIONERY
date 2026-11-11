@@ -103,3 +103,14 @@ def test_pos_grid_locks_catalog_price_and_exposes_cashier_workflows(qapp, isolat
         assert window.history_button.text() == "سجل الكاشير"
     finally:
         window.close()
+
+
+
+def test_pos_payment_dialog_supports_partial_tender(qapp):
+    dialog = pos_dialog.POSPaymentDialog(Decimal("100.00"))
+    dialog.received.setText("40.00")
+    dialog._validate()
+    assert dialog.paid_amount == Decimal("40.00")
+    assert dialog.change_amount == Decimal("0.00")
+    assert dialog.remaining.text() == "60.00"
+    dialog.close()
