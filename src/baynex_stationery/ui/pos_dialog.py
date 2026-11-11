@@ -18,7 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
 from baynex_stationery.services.pos import calculate_line, calculate_totals, decimal_input
-from baynex_stationery.services.products import get_product_by_barcode, list_products
+from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, post_sale
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
