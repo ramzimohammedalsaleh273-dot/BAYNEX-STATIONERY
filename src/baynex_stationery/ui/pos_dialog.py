@@ -427,7 +427,7 @@ class POSDialog(QDialog):
                 f"الكمية المطلوبة في الفاتورة: {requested_quantity:.3f}\\n"
                 "لا يمكن ترحيل الفاتورة قبل توفير الكمية المطلوبة.",
             )
-        elif product.minimum_stock > 0 and projected_balance <= product.minimum_stock:
+        elif projected_balance <= product.minimum_stock:
             QMessageBox.warning(
                 self, "تنبيه حد المخزون",
                 f"بعد هذه الإضافة سيصبح الرصيد المتوقع للصنف «{product.name}» "
@@ -593,7 +593,7 @@ class POSDialog(QDialog):
         )
 
     def new_ticket_after_hold(self):
-        self.customer.setText("عميل نقدي")
+        self.customer.clear()
         self.customer_phone.clear()
         self.invoice_note.clear()
         self.invoice_no.setText(f"POS-{datetime.now():%Y%m%d-%H%M%S}")
