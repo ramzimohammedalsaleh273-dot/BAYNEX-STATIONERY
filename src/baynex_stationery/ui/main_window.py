@@ -293,13 +293,14 @@ class MainWindow(QMainWindow):
         self.transfer_button = QPushButton("تحويل")
         self.count_button = QPushButton("الجرد")
         self.movements_button = QPushButton("الحركات")
+        self.sales_button = QPushButton("فاتورة مبيعات")
 
         action_buttons = (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
             self.add_warehouse_button, self.edit_warehouse_button,
             self.deactivate_warehouse_button, self.receive_button, self.issue_button,
-            self.transfer_button, self.count_button, self.movements_button,
+            self.transfer_button, self.count_button, self.movements_button, self.sales_button,
         )
         for button in action_buttons:
             button.setMinimumHeight(29)
@@ -319,6 +320,7 @@ class MainWindow(QMainWindow):
             self.category_button, self.unit_button, self.refresh_button,
         ):
             catalog_toolbar.addWidget(button)
+        catalog_toolbar.addWidget(self.sales_button)
         catalog_toolbar.addSeparator()
         catalog_toolbar.addWidget(self.search)
 
@@ -376,6 +378,9 @@ class MainWindow(QMainWindow):
         ):
             action = catalog_menu.addAction(label)
             action.triggered.connect(handler)
+        sales_menu = self.menuBar().addMenu("المبيعات")
+        sales_action = sales_menu.addAction("فاتورة مبيعات جديدة")
+        sales_action.triggered.connect(self.open_sales_invoice)
         stock_menu = self.menuBar().addMenu("المخزون")
         for label, handler in (
             ("إدخال مخزون", self.receive_selected),
@@ -408,12 +413,20 @@ class MainWindow(QMainWindow):
         self.transfer_button.clicked.connect(self.transfer_selected)
         self.count_button.clicked.connect(self.count_selected)
         self.movements_button.clicked.connect(self.show_movements)
+        self.sales_button.clicked.connect(self.open_sales_invoice)
         self.search.textChanged.connect(self.refresh_products)
         self.warehouse.currentIndexChanged.connect(self.refresh_products)
         self._refresh_warehouses()
         self.table.doubleClicked.connect(self.edit_product)
         self.refresh_products()
 
+
+    def open_sales_invoice(self):
+        from baynex_stationery.ui.sales_dialog import SalesInvoiceDialog
+
+        dialog = SalesInvoiceDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.refresh_products()
 
     def _refresh_warehouses(self):
         with SessionLocal.begin() as session:
