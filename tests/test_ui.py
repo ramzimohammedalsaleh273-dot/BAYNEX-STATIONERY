@@ -72,6 +72,7 @@ def test_pos_grid_locks_catalog_price_and_exposes_cashier_workflows(qapp, isolat
         product = Product(
             sku="POS-UI-01", name="قلم اختبار", unit="قطعة",
             cost_price=Decimal("2.00"), sale_price=Decimal("5.00"),
+            wholesale_price=Decimal("4.50"),
             stock_quantity=Decimal("10.000"), minimum_stock=Decimal("1.000"),
         )
         session.add(product)
@@ -84,7 +85,10 @@ def test_pos_grid_locks_catalog_price_and_exposes_cashier_workflows(qapp, isolat
         )
     window = pos_dialog.POSDialog()
     try:
+        window.price_type.setCurrentIndex(1)
         window.add_product(product_id)
+        assert window.cart[product_id]["unit_price"] == Decimal("4.50")
+        assert not window.price_type.isEnabled()
         assert window.cart_table.columnCount() == 9
         assert window.cart_table.rowCount() >= 12
         price_flags = window.cart_table.item(0, 6).flags()
