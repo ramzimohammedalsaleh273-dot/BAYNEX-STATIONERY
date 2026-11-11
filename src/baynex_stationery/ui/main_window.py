@@ -45,6 +45,7 @@ from baynex_stationery.services.inventory import (
     receive_stock,
     set_inventory_count_line,
     set_warehouse_active,
+    update_warehouse,
 )
 from baynex_stationery.services.products import (
     create_product,
@@ -152,6 +153,7 @@ class MainWindow(QMainWindow):
         self.refresh_button = QPushButton("تحديث")
         self.warehouse = QComboBox()
         self.add_warehouse_button = QPushButton("إضافة مستودع")
+        self.edit_warehouse_button = QPushButton("تعديل المستودع")
         self.deactivate_warehouse_button = QPushButton("إيقاف المستودع")
         self.receive_button = QPushButton("إدخال مخزون")
         self.issue_button = QPushButton("صرف مخزون")
@@ -167,7 +169,8 @@ class MainWindow(QMainWindow):
 
         inventory_toolbar = QHBoxLayout()
         for widget in (
-            self.warehouse, self.add_warehouse_button, self.deactivate_warehouse_button,
+            self.warehouse, self.add_warehouse_button, self.edit_warehouse_button,
+            self.deactivate_warehouse_button,
             self.receive_button, self.issue_button, self.transfer_button,
             self.count_button, self.movements_button,
         ):
@@ -197,6 +200,7 @@ class MainWindow(QMainWindow):
         self.unit_button.clicked.connect(self.add_unit)
         self.refresh_button.clicked.connect(self.refresh_products)
         self.add_warehouse_button.clicked.connect(self.add_warehouse)
+        self.edit_warehouse_button.clicked.connect(self.edit_warehouse)
         self.deactivate_warehouse_button.clicked.connect(self.deactivate_warehouse)
         self.receive_button.clicked.connect(self.receive_selected)
         self.issue_button.clicked.connect(self.issue_selected)
@@ -213,11 +217,15 @@ class MainWindow(QMainWindow):
     def _refresh_warehouses(self):
         with SessionLocal.begin() as session:
             default = ensure_default_warehouse(session)
-            warehouses = list_warehouses(session)
+            warehouses = list_warehouses(session, include_inactive=True)
         selected = self.warehouse.currentData()
         self.warehouse.clear()
         for item in warehouses:
-            self.warehouse.addItem(item.name, item.id)
+            label = item.name if item.is_active else f"{item.name} (متوقف)"
+            self.warehouse.addItem(label, item.id)
+            self.warehouse.setItemData(
+                self.warehouse.count() - 1, item.is_active, Qt.ItemDataRole.UserRole + 1
+            )
         index = self.warehouse.findData(selected if selected is not None else default.id)
         if index >= 0:
             self.warehouse.setCurrentIndex(index)
@@ -228,7 +236,10 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "المخزون", "حدد صنفاً من الجدول أولاً")
             return None
         if self.warehouse.currentData() is None:
-            QMessageBox.warning(self, "المخزون", "لا يوجد مستودع نشط")
+            QMessageBox.warning(self, "المخزون", "لا يوجد مستودع محدد")
+            return None
+        if not self.warehouse.currentData(Qt.ItemDataRole.UserRole + 1):
+            QMessageBox.warning(self, "المخزون", "المستودع المحدد متوقف؛ فعّله أولاً")
             return None
         return product_id
 
@@ -247,22 +258,52 @@ class MainWindow(QMainWindow):
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر إنشاء المستودع", str(exc))
 
+    def edit_warehouse(self):
+        warehouse_id = self.warehouse.currentData()
+        if warehouse_id is None:
+            return
+        with SessionLocal() as session:
+            from baynex_stationery.db.models import Warehouse
+            warehouse = session.get(Warehouse, warehouse_id)
+            if warehouse is None:
+                return
+            old_code, old_name = warehouse.code, warehouse.name
+        code, accepted = QInputDialog.getText(
+            self, "تعديل المستودع", "رمز المستودع:", text=old_code
+        )
+        if not accepted:
+            return
+        name, accepted = QInputDialog.getText(
+            self, "تعديل المستودع", "اسم المستودع:", text=old_name
+        )
+        if not accepted:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                update_warehouse(session, warehouse_id, code=code, name=name)
+            self._refresh_warehouses()
+            QMessageBox.information(self, "المستودعات", "تم تحديث بيانات المستودع")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر تعديل المستودع", str(exc))
+
     def deactivate_warehouse(self):
         warehouse_id = self.warehouse.currentData()
         if warehouse_id is None:
             return
+        active = bool(self.warehouse.currentData(Qt.ItemDataRole.UserRole + 1))
+        action = "إيقاف" if active else "تفعيل"
         answer = QMessageBox.question(
-            self, "إيقاف المستودع",
-            "سيتم إيقاف المستودع إذا لم يكن افتراضياً ولا يحتوي على أرصدة. هل تريد المتابعة؟",
+            self, f"{action} المستودع",
+            f"هل تريد {action} المستودع المحدد؟ لا يمكن إيقاف المستودع الافتراضي أو مستودع لديه رصيد.",
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
         try:
             with SessionLocal.begin() as session:
-                set_warehouse_active(session, warehouse_id, False)
+                set_warehouse_active(session, warehouse_id, not active)
             self._refresh_warehouses()
             self.refresh_products()
-            QMessageBox.information(self, "المستودعات", "تم إيقاف المستودع")
+            QMessageBox.information(self, "المستودعات", f"تم {action} المستودع")
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر إيقاف المستودع", str(exc))
 
