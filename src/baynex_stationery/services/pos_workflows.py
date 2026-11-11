@@ -99,6 +99,17 @@ def create_sale_return(
         ))
 
     total_refund = money(total_refund)
+    previous_refunds = session.scalar(
+        select(func.coalesce(func.sum(-Payment.amount), 0)).where(
+            Payment.sale_id == sale.id, Payment.amount < 0
+        )
+    )
+    refundable_paid = max(Decimal("0.00"), sale.paid_amount - Decimal(str(previous_refunds or 0)))
+    if total_refund > refundable_paid:
+        raise ValueError(
+            f"قيمة المرتجع {total_refund:.2f} تتجاوز المبلغ المحصل المتاح "
+            f"لرده {refundable_paid:.2f}. لا يمكن رد مبالغ لم تُحصّل من العميل."
+        )
     returned_doc = SaleReturn(
         number=clean_number, sale_id=sale.id, status="posted",
         refund_method=refund_method, refund_amount=total_refund,
