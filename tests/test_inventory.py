@@ -22,6 +22,7 @@ from baynex_stationery.services.inventory import (
     receive_stock,
     set_inventory_count_line,
     set_warehouse_active,
+    update_warehouse,
 )
 
 
@@ -182,3 +183,18 @@ def test_count_rejects_catalog_changes_after_snapshot(session):
     with pytest.raises(ValueError, match="قائمة الأصناف"):
         post_inventory_count(session, count_id=count.id)
     assert get_stock_balance(session, second.id, main.id) == Decimal("0.000")
+
+
+
+def test_warehouse_can_be_renamed_and_default_reassigned(session):
+    main = ensure_default_warehouse(session)
+    second = create_warehouse(session, code="NEW-01", name="مستودع جديد")
+    update_warehouse(
+        session, second.id, code="NEW-02", name="مستودع معدل", is_default=True
+    )
+    assert second.code == "NEW-02"
+    assert second.name == "مستودع معدل"
+    assert second.is_default is True
+    assert main.is_default is False
+    with pytest.raises(ValueError, match="عيّن مستودعاً افتراضياً"):
+        update_warehouse(session, second.id, is_default=False)
