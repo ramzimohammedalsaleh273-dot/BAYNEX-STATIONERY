@@ -70,6 +70,17 @@ class Product(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
 
 
+class Warehouse(Base):
+    __tablename__ = "warehouses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
 class Sale(Base):
     __tablename__ = "sales"
 
@@ -120,3 +131,54 @@ class Payment(Base):
     method: Mapped[str] = mapped_column(String(30), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     sale: Mapped[Sale] = relationship(back_populates="payments")
+
+
+class InventoryCount(Base):
+    __tablename__ = "inventory_counts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lines: Mapped[list[InventoryCountLine]] = relationship(back_populates="count", cascade="all, delete-orphan")
+
+
+class InventoryCountLine(Base):
+    __tablename__ = "inventory_count_lines"
+    __table_args__ = (UniqueConstraint("count_id", "product_id", name="uq_inventory_count_product"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    count_id: Mapped[int] = mapped_column(ForeignKey("inventory_counts.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
+    book_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    counted_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    difference: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    count: Mapped[InventoryCount] = relationship(back_populates="lines")
+
+
+class InventoryTransfer(Base):
+    __tablename__ = "inventory_transfers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    source_warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    destination_warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    lines: Mapped[list[InventoryTransferLine]] = relationship(back_populates="transfer", cascade="all, delete-orphan")
+
+
+class InventoryTransferLine(Base):
+    __tablename__ = "inventory_transfer_lines"
+    __table_args__ = (UniqueConstraint("transfer_id", "product_id", name="uq_inventory_transfer_product"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    transfer_id: Mapped[int] = mapped_column(ForeignKey("inventory_transfers.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    transfer: Mapped[InventoryTransfer] = relationship(back_populates="lines")
