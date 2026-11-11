@@ -161,16 +161,21 @@ class MainWindow(QMainWindow):
         for widget in (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
-            self.warehouse, self.add_warehouse_button, self.deactivate_warehouse_button, self.receive_button,
-            self.issue_button, self.transfer_button, self.count_button,
-            self.movements_button,
         ):
             toolbar.addWidget(widget)
         toolbar.addWidget(self.search, 1)
 
+        inventory_toolbar = QHBoxLayout()
+        for widget in (
+            self.warehouse, self.add_warehouse_button, self.deactivate_warehouse_button,
+            self.receive_button, self.issue_button, self.transfer_button,
+            self.count_button, self.movements_button,
+        ):
+            inventory_toolbar.addWidget(widget)
+
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
-            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "الرصيد"]
+            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "رصيد المستودع"]
         )
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -181,6 +186,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(header)
         layout.addWidget(subtitle)
         layout.addLayout(toolbar)
+        layout.addLayout(inventory_toolbar)
         layout.addWidget(self.table)
         self.setCentralWidget(root)
 
@@ -353,6 +359,15 @@ class MainWindow(QMainWindow):
             return
         quantity = self._manual_quantity("جرد الصنف")
         if quantity is None:
+            return
+        with SessionLocal() as session:
+            book_quantity = get_stock_balance(session, product_id, self.warehouse.currentData())
+        difference = quantity - book_quantity
+        answer = QMessageBox.question(
+            self, "تأكيد الجرد",
+            f"الرصيد الدفتري: {book_quantity:g}\\nالكمية الفعلية: {quantity:g}\\nالفرق: {difference:+g}\\nهل تريد اعتماد التسوية؟",
+        )
+        if answer != QMessageBox.StandardButton.Yes:
             return
         try:
             with SessionLocal.begin() as session:
