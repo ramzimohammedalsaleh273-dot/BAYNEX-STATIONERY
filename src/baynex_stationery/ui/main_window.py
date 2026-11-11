@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from typing import ClassVar
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -10,7 +11,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
-    QHBoxLayout,
+    QGroupBox,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -19,6 +20,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QToolBar,
     QVBoxLayout,
     QWidget,
 )
@@ -54,6 +56,7 @@ from baynex_stationery.services.products import (
     set_product_active,
     update_product,
 )
+from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
 
 class ProductDialog(QDialog):
@@ -83,26 +86,38 @@ class ProductDialog(QDialog):
         if product:
             self._select_data(self.category, product.category_id)
             self._select_data(self.unit, product.unit_id)
-        form = QFormLayout()
-        for key, label in [
-            ("sku", "رمز الصنف *"), ("name", "اسم الصنف *"),
-            ("barcode", "الباركود"), ("sale", "سعر البيع"),
-            ("cost", "سعر التكلفة"), ("stock", "الرصيد الافتتاحي"),
-            ("minimum", "حد إعادة الطلب"), ("notes", "ملاحظات"),
-        ]:
-            if key == "stock" and product:
-                continue
-            form.addRow(label, self.fields[key])
-        form.addRow("التصنيف", self.category)
-        form.addRow("وحدة القياس", self.unit)
+        basic_group = QGroupBox("البيانات الأساسية")
+        basic_form = QFormLayout(basic_group)
+        basic_form.addRow("رمز الصنف *", self.fields["sku"])
+        basic_form.addRow("اسم الصنف *", self.fields["name"])
+        basic_form.addRow("الباركود", self.fields["barcode"])
+        basic_form.addRow("ملاحظات", self.fields["notes"])
+
+        pricing_group = QGroupBox("الأسعار والكميات")
+        pricing_form = QFormLayout(pricing_group)
+        pricing_form.addRow("سعر البيع", self.fields["sale"])
+        pricing_form.addRow("سعر التكلفة", self.fields["cost"])
+        if not product:
+            pricing_form.addRow("الرصيد الافتتاحي", self.fields["stock"])
+        pricing_form.addRow("حد إعادة الطلب", self.fields["minimum"])
+
+        classification_group = QGroupBox("التصنيف ووحدة القياس")
+        classification_form = QFormLayout(classification_group)
+        classification_form.addRow("التصنيف", self.category)
+        classification_form.addRow("وحدة القياس", self.unit)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
-        layout.addLayout(form)
+        layout.setSpacing(12)
+        layout.addWidget(basic_group)
+        layout.addWidget(pricing_group)
+        layout.addWidget(classification_group)
         layout.addWidget(buttons)
+        self.setMinimumWidth(540)
 
     @staticmethod
     def _select_data(combo, value):
@@ -139,7 +154,7 @@ class InventoryCountDialog(QDialog):
         self.resize(760, 560)
         self.table = QTableWidget(len(balances), 3)
         self.table.setHorizontalHeaderLabels(["اسم الصنف", "الرصيد الدفتري", "الكمية الفعلية"])
-        self.table.setAlternatingRowColors(True)
+        configure_data_table(self.table, stretch_last=True, row_height=40)
         self.table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked | QTableWidget.EditTrigger.EditKeyPressed)
         for row, (product, balance) in enumerate(balances):
             name = QTableWidgetItem(product.name)
@@ -178,6 +193,69 @@ class InventoryCountDialog(QDialog):
         return result
 
 
+class InventoryMovementsDialog(QDialog):
+    """Readable, non-editable movement history for the selected product."""
+
+    MOVEMENT_NAMES: ClassVar[dict[str, str]] = {
+        "opening": "رصيد افتتاحي",
+        "receipt": "إدخال",
+        "issue": "صرف",
+        "sale": "بيع",
+        "transfer_in": "تحويل وارد",
+        "transfer_out": "تحويل صادر",
+        "adjustment_in": "تسوية زيادة",
+        "adjustment_out": "تسوية نقص",
+        "count_in": "زيادة جرد",
+        "count_out": "نقص جرد",
+    }
+
+    def __init__(self, movements, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("سجل حركات المخزون")
+        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.resize(900, 560)
+
+        self.table = QTableWidget(len(movements), 4)
+        self.table.setHorizontalHeaderLabels(
+            ["التاريخ والوقت", "نوع الحركة", "الكمية", "البيان"]
+        )
+        configure_data_table(self.table, row_height=40)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setColumnWidth(0, 170)
+        self.table.setColumnWidth(1, 150)
+        self.table.setColumnWidth(2, 110)
+
+        for row, movement in enumerate(movements):
+            values = [
+                movement.created_at.strftime("%Y-%m-%d %H:%M"),
+                self.MOVEMENT_NAMES.get(movement.movement_type, movement.movement_type),
+                f"{movement.quantity_delta:+}",
+                movement.note or "—",
+            ]
+            for column, value in enumerate(values):
+                cell = QTableWidgetItem(str(value))
+                if column == 2:
+                    cell.setTextAlignment(
+                        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                    )
+                self.table.setItem(row, column, cell)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(self.reject)
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            create_page_heading(
+                "سجل حركات المخزون",
+                f"عدد الحركات المسجلة لهذا الصنف في المستودع المحدد: {len(movements)}",
+                self,
+            )
+        )
+        layout.addWidget(self.table)
+        layout.addWidget(buttons)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -186,60 +264,135 @@ class MainWindow(QMainWindow):
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
 
         root = QWidget()
+        root.setObjectName("applicationRoot")
         layout = QVBoxLayout(root)
-        header = QLabel("BAYNEX STATIONERY")
-        header.setStyleSheet("font-size: 24px; font-weight: 700; padding: 12px;")
-        subtitle = QLabel("إدارة الأصناف والتصنيفات ووحدات القياس والباركود")
-        toolbar = QHBoxLayout()
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(7)
+
+        heading = create_page_heading(
+            "إدارة الأصناف والمخزون",
+            "تعريف الأصناف ومتابعة الأرصدة وحركات المستودعات",
+            root,
+        )
         self.search = QLineEdit()
-        self.search.setPlaceholderText("ابحث بالاسم أو الرمز أو الباركود...")
-        self.add_button = QPushButton("إضافة صنف")
-        self.edit_button = QPushButton("تعديل المحدد")
-        self.deactivate_button = QPushButton("إيقاف الصنف")
-        self.category_button = QPushButton("إضافة تصنيف")
-        self.unit_button = QPushButton("إضافة وحدة")
+        self.search.setClearButtonEnabled(True)
+        self.search.setMinimumWidth(240)
+        self.search.setPlaceholderText("بحث سريع: الاسم أو الرمز أو الباركود...")
+        self.add_button = QPushButton("جديد")
+        self.edit_button = QPushButton("تعديل")
+        self.deactivate_button = QPushButton("إيقاف")
+        self.category_button = QPushButton("التصنيفات")
+        self.unit_button = QPushButton("وحدات القياس")
         self.refresh_button = QPushButton("تحديث")
         self.warehouse = QComboBox()
-        self.add_warehouse_button = QPushButton("إضافة مستودع")
+        self.add_warehouse_button = QPushButton("مستودع جديد")
         self.edit_warehouse_button = QPushButton("تعديل المستودع")
         self.deactivate_warehouse_button = QPushButton("إيقاف المستودع")
-        self.receive_button = QPushButton("إدخال مخزون")
-        self.issue_button = QPushButton("صرف مخزون")
+        self.receive_button = QPushButton("إدخال")
+        self.issue_button = QPushButton("صرف")
         self.transfer_button = QPushButton("تحويل")
-        self.count_button = QPushButton("جرد المستودع")
-        self.movements_button = QPushButton("سجل الحركات")
-        for widget in (
+        self.count_button = QPushButton("الجرد")
+        self.movements_button = QPushButton("الحركات")
+
+        action_buttons = (
+            self.add_button, self.edit_button, self.deactivate_button,
+            self.category_button, self.unit_button, self.refresh_button,
+            self.add_warehouse_button, self.edit_warehouse_button,
+            self.deactivate_warehouse_button, self.receive_button, self.issue_button,
+            self.transfer_button, self.count_button, self.movements_button,
+        )
+        for button in action_buttons:
+            button.setMinimumHeight(29)
+            button.setMinimumWidth(68)
+        self.add_button.setObjectName("primaryAction")
+        self.receive_button.setObjectName("primaryAction")
+        self.warehouse.setMinimumWidth(155)
+        self.warehouse.setMinimumHeight(29)
+
+        catalog_toolbar = QToolBar("إدارة الأصناف", self)
+        catalog_toolbar.setObjectName("catalogToolbar")
+        catalog_toolbar.setMovable(False)
+        catalog_toolbar.setFloatable(False)
+        catalog_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        for button in (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
         ):
-            toolbar.addWidget(widget)
-        toolbar.addWidget(self.search, 1)
+            catalog_toolbar.addWidget(button)
+        catalog_toolbar.addSeparator()
+        catalog_toolbar.addWidget(self.search)
 
-        inventory_toolbar = QHBoxLayout()
+        stock_toolbar = QToolBar("عمليات المخزون", self)
+        stock_toolbar.setObjectName("stockToolbar")
+        stock_toolbar.setMovable(False)
+        stock_toolbar.setFloatable(False)
+        stock_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         for widget in (
             self.warehouse, self.add_warehouse_button, self.edit_warehouse_button,
-            self.deactivate_warehouse_button,
-            self.receive_button, self.issue_button, self.transfer_button,
-            self.count_button, self.movements_button,
+            self.deactivate_warehouse_button, self.receive_button, self.issue_button,
+            self.transfer_button, self.count_button, self.movements_button,
         ):
-            inventory_toolbar.addWidget(widget)
+            stock_toolbar.addWidget(widget)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, catalog_toolbar)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, stock_toolbar)
 
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
-            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "رصيد المستودع"]
+            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "الرصيد"]
         )
-        self.table.setAlternatingRowColors(True)
+        configure_data_table(self.table, row_height=32)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setColumnWidth(0, 105)
+        self.table.setColumnWidth(1, 145)
+        self.table.setColumnWidth(2, 250)
+        self.table.setColumnWidth(3, 150)
+        self.table.setColumnWidth(4, 90)
+        self.table.setColumnWidth(5, 125)
+        self.table.setColumnWidth(6, 125)
 
-        layout.addWidget(header)
-        layout.addWidget(subtitle)
-        layout.addLayout(toolbar)
-        layout.addLayout(inventory_toolbar)
-        layout.addWidget(self.table)
+        table_frame = QGroupBox("بيانات الأصناف وأرصدة المستودع")
+        table_layout = QVBoxLayout(table_frame)
+        table_layout.setContentsMargins(6, 10, 6, 6)
+        table_layout.addWidget(self.table)
+
+        layout.addWidget(heading)
+        layout.addWidget(table_frame, 1)
         self.setCentralWidget(root)
+
+        file_menu = self.menuBar().addMenu("ملف")
+        refresh_action = file_menu.addAction("تحديث البيانات")
+        refresh_action.triggered.connect(self.refresh_products)
+        file_menu.addSeparator()
+        exit_action = file_menu.addAction("إغلاق النظام")
+        exit_action.triggered.connect(self.close)
+        catalog_menu = self.menuBar().addMenu("الأصناف")
+        for label, handler in (
+            ("إضافة صنف", self.add_product),
+            ("تعديل الصنف المحدد", self.edit_product),
+            ("إضافة تصنيف", self.add_category),
+            ("إضافة وحدة قياس", self.add_unit),
+        ):
+            action = catalog_menu.addAction(label)
+            action.triggered.connect(handler)
+        stock_menu = self.menuBar().addMenu("المخزون")
+        for label, handler in (
+            ("إدخال مخزون", self.receive_selected),
+            ("صرف مخزون", self.issue_selected),
+            ("تحويل مخزون", self.transfer_selected),
+            ("جرد المستودع", self.count_selected),
+            ("سجل الحركات", self.show_movements),
+        ):
+            action = stock_menu.addAction(label)
+            action.triggered.connect(handler)
+        help_menu = self.menuBar().addMenu("مساعدة")
+        about_action = help_menu.addAction("حول BAYNEX")
+        about_action.triggered.connect(
+            lambda: QMessageBox.information(
+                self, "حول BAYNEX", "BAYNEX STATIONERY\\nنظام إدارة القرطاسية والمخزون"
+            )
+        )
 
         self.add_button.clicked.connect(self.add_product)
         self.edit_button.clicked.connect(self.edit_product)
@@ -501,21 +654,13 @@ class MainWindow(QMainWindow):
                 session, product_id=product_id, warehouse_id=self.warehouse.currentData()
             )
         if not movements:
-            message = "لا توجد حركات مسجلة لهذا الصنف في المستودع المحدد."
-        else:
-            movement_names = {
-                "opening": "رصيد افتتاحي", "receipt": "إدخال", "issue": "صرف",
-                "sale": "بيع", "transfer_in": "تحويل وارد", "transfer_out": "تحويل صادر",
-                "adjustment_in": "تسوية زيادة", "adjustment_out": "تسوية نقص",
-                "count_in": "زيادة جرد", "count_out": "نقص جرد",
-            }
-            message = "\n".join(
-                f"{item.created_at:%Y-%m-%d %H:%M} | "
-                f"{movement_names.get(item.movement_type, item.movement_type)} | "
-                f"{item.quantity_delta:+} | {item.note or ''}"
-                for item in movements
+            QMessageBox.information(
+                self,
+                "سجل حركات المخزون",
+                "لا توجد حركات مسجلة لهذا الصنف في المستودع المحدد.",
             )
-        QMessageBox.information(self, "سجل حركات المخزون", message)
+            return
+        InventoryMovementsDialog(movements, self).exec()
 
     def _catalog(self):
         with SessionLocal() as session:
@@ -537,7 +682,12 @@ class MainWindow(QMainWindow):
                     cell = QTableWidgetItem(str(value))
                     if column == 0:
                         cell.setData(Qt.ItemDataRole.UserRole, product.id)
+                    if column in (5, 6, 7):
+                        cell.setTextAlignment(
+                            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                        )
                     self.table.setItem(row, column, cell)
+        self.statusBar().showMessage(f"عدد الأصناف المعروضة: {len(products)}")
 
     def _selected_product_id(self):
         row = self.table.currentRow()
