@@ -343,9 +343,10 @@ class MainWindow(QMainWindow):
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, catalog_toolbar)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, stock_toolbar)
 
-        self.table = QTableWidget(0, 8)
+        self.table = QTableWidget(0, 9)
         self.table.setHorizontalHeaderLabels(
-            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "الرصيد"]
+            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة",
+             "سعر التكلفة", "سعر التجزئة", "سعر الجملة", "الرصيد"]
         )
         configure_data_table(self.table, row_height=32)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
@@ -358,6 +359,7 @@ class MainWindow(QMainWindow):
         self.table.setColumnWidth(4, 90)
         self.table.setColumnWidth(5, 125)
         self.table.setColumnWidth(6, 125)
+        self.table.setColumnWidth(7, 125)
 
         table_frame = QGroupBox("بيانات الأصناف وأرصدة المستودع")
         table_layout = QVBoxLayout(table_frame)
@@ -704,13 +706,14 @@ class MainWindow(QMainWindow):
                     product.category.name if product.category else "—",
                     product.unit_record.symbol if product.unit_record else product.unit,
                     f"{product.cost_price:.2f}", f"{product.sale_price:.2f}",
+                    f"{product.wholesale_price:.2f}" if product.wholesale_price is not None else "—",
                     f"{get_stock_balance(session, product.id, self.warehouse.currentData()):g}",
                 ]
                 for column, value in enumerate(values):
                     cell = QTableWidgetItem(str(value))
                     if column == 0:
                         cell.setData(Qt.ItemDataRole.UserRole, product.id)
-                    if column in (5, 6, 7):
+                    if column in (5, 6, 7, 8):
                         cell.setTextAlignment(
                             Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
                         )
