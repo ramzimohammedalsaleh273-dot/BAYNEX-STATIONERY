@@ -146,6 +146,47 @@ class Payment(Base):
     sale: Mapped[Sale] = relationship(back_populates="payments")
 
 
+class SaleReturn(Base):
+    __tablename__ = "sale_returns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    sale_id: Mapped[int] = mapped_column(ForeignKey("sales.id", ondelete="RESTRICT"), nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), default="posted", nullable=False)
+    refund_method: Mapped[str] = mapped_column(String(24), default="cash", nullable=False)
+    refund_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    items: Mapped[list[SaleReturnItem]] = relationship(back_populates="sale_return", cascade="all, delete-orphan")
+
+
+class SaleReturnItem(Base):
+    __tablename__ = "sale_return_items"
+    __table_args__ = (UniqueConstraint("sale_return_id", "sale_item_id", name="uq_sale_return_item"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    sale_return_id: Mapped[int] = mapped_column(ForeignKey("sale_returns.id", ondelete="RESTRICT"), nullable=False)
+    sale_item_id: Mapped[int] = mapped_column(ForeignKey("sale_items.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    unit_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    line_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    sale_return: Mapped[SaleReturn] = relationship(back_populates="items")
+
+
+class CashierEvent(Base):
+    __tablename__ = "cashier_events"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    action: Mapped[str] = mapped_column(String(40), nullable=False)
+    reference_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    reference_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    reference_number: Mapped[str] = mapped_column(String(40), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    details: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
 class InventoryCount(Base):
     __tablename__ = "inventory_counts"
 
