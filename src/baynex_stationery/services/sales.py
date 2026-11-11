@@ -205,6 +205,15 @@ def post_sale(
         {"product_id": row["product_id"], "quantity": row["quantity"]}
         for row in items
     ]
+    required: dict[int, Decimal] = {}
+    for line in lines:
+        product_id = int(line["product_id"])
+        quantity = _decimal(line["quantity"], "الكمية", places=QTY, minimum=QTY)
+        required[product_id] = required.get(product_id, Decimal(0)) + quantity
+    for product_id, quantity in required.items():
+        if get_stock_balance(session, product_id, warehouse.id) < quantity:
+            product = session.get(Product, product_id)
+            raise ValueError(f"الرصيد غير كافٍ للصنف: {product.name if product else product_id}")
     draft = create_sale(
         session, number=number, warehouse_id=warehouse.id, lines=lines,
         payment_method=payment_method, discount=discount, tax_rate=tax_rate,
