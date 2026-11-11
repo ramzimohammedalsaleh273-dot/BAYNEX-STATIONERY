@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from baynex_stationery.db.models import (
-    CashierEvent, Sale, SaleItem, SaleReturn, SaleReturnItem,
+    CashierEvent, Payment, Sale, SaleItem, SaleReturn, SaleReturnItem,
 )
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import record_stock_movement
@@ -108,6 +108,10 @@ def create_sale_return(
     returned_doc.items.extend(result_lines)
     session.add(returned_doc)
     session.flush()
+    session.add(Payment(
+        sale_id=sale.id, amount=-total_refund,
+        method=f"refund_{refund_method}",
+    ))
     for item in result_lines:
         record_stock_movement(
             session, product_id=item.product_id, warehouse_id=sale.warehouse_id,
