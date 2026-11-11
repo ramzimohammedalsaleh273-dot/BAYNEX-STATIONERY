@@ -65,9 +65,26 @@ def test_add_and_refresh_buttons_use_database(qapp, isolated_database, monkeypat
 
 
 def test_pos_grid_locks_catalog_price_and_exposes_cashier_workflows(qapp, isolated_database, monkeypatch):
+    from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
     monkeypatch.setattr(pos_dialog, "SessionLocal", isolated_database)
+    with isolated_database.begin() as session:
+        warehouse = ensure_default_warehouse(session)
+        product = Product(
+            sku="POS-UI-01", name="قلم اختبار", unit="قطعة",
+            cost_price=Decimal("2.00"), sale_price=Decimal("5.00"),
+            stock_quantity=Decimal("10.000"), minimum_stock=Decimal("1.000"),
+        )
+        session.add(product)
+        session.flush()
+        product_id = product.id
+        record_stock_movement(
+            session, product_id=product.id, warehouse_id=warehouse.id,
+            quantity_delta=Decimal("10.000"), movement_type="opening",
+            reference_type="test", reference_id=product.id,
+        )
     window = pos_dialog.POSDialog()
     try:
+        window.add_product(product_id)
         assert window.cart_table.columnCount() == 9
         assert window.cart_table.rowCount() >= 12
         price_flags = window.cart_table.item(0, 6).flags()
