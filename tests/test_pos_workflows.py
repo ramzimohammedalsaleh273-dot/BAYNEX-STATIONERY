@@ -41,7 +41,7 @@ def stocked_sale(session, quantity="5"):
     sale = create_sale(
         session, number="RET-SALE-001", warehouse_id=warehouse.id,
         lines=[{"product_id": product.id, "quantity": quantity}],
-        paid_amount=Decimal("25.00"),
+        paid_amount=Decimal(quantity) * Decimal("5.00"),
     )
     post_sale(session, sale_id=sale.id)
     return sale, product, warehouse
