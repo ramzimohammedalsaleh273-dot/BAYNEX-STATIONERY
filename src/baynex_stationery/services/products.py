@@ -99,6 +99,16 @@ def create_product(
     )
     session.add(product)
     session.flush()
+    if opening_stock:
+        from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
+
+        warehouse = ensure_default_warehouse(session)
+        record_stock_movement(
+            session, product_id=product.id, warehouse_id=warehouse.id,
+            quantity_delta=opening_stock, movement_type="opening",
+            note="رصيد افتتاحي عند إنشاء الصنف",
+            reference_type="product_opening", reference_id=product.id,
+        )
     return product
 
 
