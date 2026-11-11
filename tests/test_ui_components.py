@@ -4,7 +4,8 @@ import os
 from datetime import datetime
 from types import SimpleNamespace
 
-from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget, QToolBar
 
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
@@ -83,3 +84,23 @@ def test_classic_erp_theme_has_compact_toolbar_and_grid_palette():
     assert "QHeaderView::section" in BAYNEX_STYLESHEET
     assert "#FFFEEF" in BAYNEX_STYLESHEET
     assert "qlineargradient" in BAYNEX_STYLESHEET
+
+
+
+def test_main_window_uses_two_compact_toolbars_and_preserves_actions(monkeypatch):
+    _application()
+    from baynex_stationery.ui.main_window import MainWindow
+
+    monkeypatch.setattr(MainWindow, "_refresh_warehouses", lambda self: None)
+    monkeypatch.setattr(MainWindow, "refresh_products", lambda self: None)
+    window = MainWindow()
+
+    assert window.layoutDirection() == Qt.LayoutDirection.RightToLeft
+    assert len(window.findChildren(QToolBar)) == 2
+    assert window.add_button.text() == "جديد"
+    assert window.receive_button.text() == "إدخال"
+    assert window.table.columnCount() == 8
+    assert [action.text() for action in window.menuBar().actions()] == [
+        "ملف", "الأصناف", "المخزون", "مساعدة"
+    ]
+    window.close()
