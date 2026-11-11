@@ -60,6 +60,7 @@ class Product(Base):
     unit_id: Mapped[int | None] = mapped_column(ForeignKey("units.id", ondelete="RESTRICT"))
     cost_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     sale_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    wholesale_price: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     stock_quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=Decimal(0), nullable=False)
     minimum_stock: Mapped[Decimal] = mapped_column(Numeric(14, 3), default=Decimal(0), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
