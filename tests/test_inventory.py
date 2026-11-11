@@ -37,8 +37,8 @@ def session():
 def make_product(session, sku="P-001"):
     product = Product(
         sku=sku, name=f"صنف {sku}", unit="قطعة",
-        cost_price=Decimal("2"), sale_price=Decimal("5"),
-        stock_quantity=Decimal("0"), minimum_stock=Decimal("0"),
+        cost_price=Decimal(2), sale_price=Decimal(5),
+        stock_quantity=Decimal(0), minimum_stock=Decimal("0"),
     )
     session.add(product)
     session.flush()
