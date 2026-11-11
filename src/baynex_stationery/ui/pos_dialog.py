@@ -31,7 +31,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
 
-from baynex_stationery.db.models import Sale
+from baynex_stationery.db.models import CashierEvent, Sale
 
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import (
@@ -39,7 +39,8 @@ from baynex_stationery.services.inventory import (
 )
 from baynex_stationery.services.pos import calculate_line, calculate_totals, decimal_input
 from baynex_stationery.services.products import list_products
-from baynex_stationery.services.sales import create_sale, post_sale
+from baynex_stationery.services.sales import create_sale, list_sales, post_sale
+from baynex_stationery.services.pos_workflows import create_sale_return, log_cashier_event
 from baynex_stationery.ui.components import configure_data_table
 
 
@@ -294,11 +295,13 @@ class POSDialog(QDialog):
 
         actions = QHBoxLayout()
         self.remove_button = QPushButton("حذف السطر")
+        self.return_button = QPushButton("مرتجع مبيعات")
+        self.history_button = QPushButton("سجل الكاشير")
         self.pay_button = QPushButton("حفظ وترحيل البيع  F8")
         self.pay_button.setObjectName("primaryAction")
         self.pay_button.setMinimumHeight(38)
         for button in (self.remove_button, self.hold_button, self.restore_button,
-                       self.print_button):
+                       self.return_button, self.history_button, self.print_button):
             actions.addWidget(button)
         actions.addStretch(1)
         actions.addWidget(self.pay_button)
@@ -313,6 +316,8 @@ class POSDialog(QDialog):
         self.barcode.returnPressed.connect(self.scan_barcode)
         self.product_picker.lineEdit().returnPressed.connect(self.add_selected_product)
         self.remove_button.clicked.connect(self.remove_selected)
+        self.return_button.clicked.connect(self.create_return)
+        self.history_button.clicked.connect(self.show_cashier_history)
         self.pay_button.clicked.connect(self.checkout)
         self.customer.textChanged.connect(
             lambda value: self.customer_summary.setText(value.strip() or "عميل نقدي")
@@ -714,6 +719,11 @@ class POSDialog(QDialog):
                     notes=self.invoice_note.text().strip() or None,
                 )
                 post_sale(session, sale_id=sale.id)
+                log_cashier_event(
+                    session, action="sale_posted", reference_type="sale",
+                    reference_id=sale.id, reference_number=sale.number,
+                    amount=sale.total, details=f"تم ترحيل فاتورة للعميل {sale.customer_name}",
+                )
                 self.last_receipt = {
                     "number": sale.number, "customer": sale.customer_name,
                     "date": sale.invoice_date.strftime("%Y-%m-%d %H:%M"),
@@ -743,6 +753,107 @@ class POSDialog(QDialog):
             self.cart_table.editItem(self.cart_table.item(0, 1))
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر إتمام البيع", str(exc))
+
+    def create_return(self):
+        """Create a quantity-limited return linked to a posted sales invoice."""
+        try:
+            with SessionLocal() as session:
+                sales = list_sales(session, include_drafts=False)
+                choices = [f"{sale.number} — {sale.customer_name} — {sale.total:.2f}"
+                           for sale in sales]
+                if not choices:
+                    QMessageBox.information(self, "مرتجع مبيعات", "لا توجد فواتير مرحلة يمكن إرجاعها.")
+                    return
+                choice, accepted = QInputDialog.getItem(
+                    self, "اختيار فاتورة المرتجع", "اختر فاتورة البيع الأصلية:", choices, 0, False
+                )
+                if not accepted:
+                    return
+                sale = sales[choices.index(choice)]
+                sale_id = sale.id
+                items = [{
+                    "id": item.id, "name": item.product_name,
+                    "quantity": item.quantity, "unit_price": item.unit_price,
+                    "line_total": item.line_total,
+                } for item in sale.items]
+                prior = session.execute(
+                    select(Sale.id).where(Sale.id == sale_id)
+                ).first()
+                if prior is None:
+                    raise ValueError("فاتورة البيع لم تعد موجودة")
+            lines = []
+            with SessionLocal() as session:
+                from baynex_stationery.db.models import SaleReturnItem, SaleReturn
+                returned_rows = session.execute(
+                    select(SaleReturnItem.sale_item_id, SaleReturnItem.quantity)
+                    .join(SaleReturn, SaleReturn.id == SaleReturnItem.sale_return_id)
+                    .where(SaleReturn.sale_id == sale_id, SaleReturn.status == "posted")
+                ).all()
+            returned = {}
+            for item_id, quantity in returned_rows:
+                returned[item_id] = returned.get(item_id, Decimal(0)) + quantity
+            for item in items:
+                remaining = item["quantity"] - returned.get(item["id"], Decimal(0))
+                if remaining <= 0:
+                    continue
+                qty, accepted = QInputDialog.getDouble(
+                    self, "كمية المرتجع",
+                    f"الصنف: {item['name']}\nالمتبقي القابل للإرجاع: {remaining:.3f}\n"
+                    "أدخل الكمية (صفر لتجاوز الصنف):",
+                    0.0, 0.0, float(remaining), 3,
+                )
+                if not accepted:
+                    return
+                if qty > 0:
+                    lines.append({"sale_item_id": item["id"], "quantity": Decimal(str(qty))})
+            if not lines:
+                QMessageBox.information(self, "مرتجع مبيعات", "لم تحدد أي كمية للإرجاع.")
+                return
+            method, accepted = QInputDialog.getItem(
+                self, "طريقة رد المبلغ", "اختر طريقة رد المبلغ:",
+                ["نقدي", "شبكة / بطاقة", "تحويل"], 0, False,
+            )
+            if not accepted:
+                return
+            method_code = {"نقدي": "cash", "شبكة / بطاقة": "card", "تحويل": "transfer"}[method]
+            return_number = f"RET-{datetime.now():%Y%m%d-%H%M%S}"
+            with SessionLocal.begin() as session:
+                result = create_sale_return(
+                    session, number=return_number, sale_id=sale_id,
+                    lines=lines, refund_method=method_code,
+                )
+            QMessageBox.information(
+                self, "تم تسجيل المرتجع",
+                f"رقم المرتجع: {result.number}\nقيمة رد المبلغ: {result.refund_amount:,.2f}\n"
+                "تم ربط المرتجع بالفاتورة الأصلية وإعادة الكمية إلى مخزون المستودع.",
+            )
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر تسجيل المرتجع", str(exc))
+
+    def show_cashier_history(self):
+        from PySide6.QtWidgets import QDialog, QTableWidget, QTableWidgetItem, QVBoxLayout
+        dialog = QDialog(self)
+        dialog.setWindowTitle("سجل عمليات الكاشير")
+        dialog.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        dialog.resize(850, 480)
+        table = QTableWidget(0, 5)
+        table.setHorizontalHeaderLabels(["التاريخ", "العملية", "رقم المستند", "المبلغ", "التفاصيل"])
+        with SessionLocal() as session:
+            events = list(session.scalars(
+                select(CashierEvent).order_by(CashierEvent.created_at.desc(), CashierEvent.id.desc()).limit(500)
+            ))
+        table.setRowCount(len(events))
+        for row, event in enumerate(events):
+            values = [event.created_at.strftime("%Y-%m-%d %H:%M"), event.action,
+                      event.reference_number, f"{event.amount:,.2f}", event.details or ""]
+            for col, value in enumerate(values):
+                table.setItem(row, col, QTableWidgetItem(str(value)))
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(table)
+        close = QPushButton("إغلاق")
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close)
+        dialog.exec()
 
     def print_receipt(self):
         receipt = getattr(self, "last_receipt", None)
