@@ -503,8 +503,15 @@ class MainWindow(QMainWindow):
         if not movements:
             message = "لا توجد حركات مسجلة لهذا الصنف في المستودع المحدد."
         else:
+            movement_names = {
+                "opening": "رصيد افتتاحي", "receipt": "إدخال", "issue": "صرف",
+                "sale": "بيع", "transfer_in": "تحويل وارد", "transfer_out": "تحويل صادر",
+                "adjustment_in": "تسوية زيادة", "adjustment_out": "تسوية نقص",
+                "count_in": "زيادة جرد", "count_out": "نقص جرد",
+            }
             message = "\n".join(
-                f"{item.created_at:%Y-%m-%d %H:%M} | {item.movement_type} | "
+                f"{item.created_at:%Y-%m-%d %H:%M} | "
+                f"{movement_names.get(item.movement_type, item.movement_type)} | "
                 f"{item.quantity_delta:+} | {item.note or ''}"
                 for item in movements
             )
