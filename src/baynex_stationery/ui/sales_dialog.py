@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from baynex_stationery.db.models import Product
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
 from baynex_stationery.services.products import list_products
