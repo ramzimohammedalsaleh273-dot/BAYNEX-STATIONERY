@@ -423,9 +423,16 @@ class POSDialog(QDialog):
             self.cart[product_id]["quantity"] + Decimal("1.000")
             if product_id in self.cart else Decimal("1.000")
         )
+        if self.price_type.currentData() == "wholesale" and product.wholesale_price is None:
+            QMessageBox.warning(
+                self, "سعر الجملة غير محدد",
+                f"لم يتم تحديد سعر جملة للصنف «{product.name}». "
+                "افتح بطاقة الصنف وأدخل سعر الجملة، أو ابدأ الفاتورة بنوع سعر التجزئة.",
+            )
+            return
         selected_price = (
             product.wholesale_price
-            if self.price_type.currentData() == "wholesale" and product.wholesale_price is not None
+            if self.price_type.currentData() == "wholesale"
             else product.sale_price
         )
         warehouse_id = self.warehouse.currentData()
