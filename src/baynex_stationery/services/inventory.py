@@ -141,16 +141,16 @@ def record_stock_movement(
 ) -> StockMovement:
     if movement_type not in ALLOWED_MOVEMENT_TYPES:
         raise ValueError("نوع حركة المخزون غير معروف")
-    positive_types = {"opening", "receipt", "transfer_in", "adjustment_in", "count_in"}
-    negative_types = {"issue", "sale", "transfer_out", "adjustment_out", "count_out"}
-    if movement_type in positive_types and Decimal(str(quantity_delta)) <= 0:
-        raise ValueError("هذا النوع من الحركة يتطلب كمية موجبة")
-    if movement_type in negative_types and Decimal(str(quantity_delta)) >= 0:
-        raise ValueError("هذا النوع من الحركة يتطلب كمية سالبة")
     try:
         delta = Decimal(str(quantity_delta))
     except (InvalidOperation, TypeError, ValueError) as exc:
         raise ValueError("كمية الحركة غير صالحة") from exc
+    positive_types = {"opening", "receipt", "transfer_in", "adjustment_in", "count_in"}
+    negative_types = {"issue", "sale", "transfer_out", "adjustment_out", "count_out"}
+    if movement_type in positive_types and delta <= 0:
+        raise ValueError("هذا النوع من الحركة يتطلب كمية موجبة")
+    if movement_type in negative_types and delta >= 0:
+        raise ValueError("هذا النوع من الحركة يتطلب كمية سالبة")
     if not delta.is_finite() or delta == 0 or delta != delta.quantize(Decimal("0.001")):
         raise ValueError("كمية الحركة يجب أن تكون محدودة وغير صفرية وبحد أقصى ثلاث خانات عشرية")
     product = session.scalar(select(Product).where(Product.id == product_id).with_for_update())
