@@ -70,6 +70,7 @@ class ProductDialog(QDialog):
             "name": QLineEdit(product.name if product else ""),
             "barcode": QLineEdit(product.barcode or "" if product else ""),
             "sale": QLineEdit(str(product.sale_price) if product else "0.00"),
+            "wholesale": QLineEdit(str(product.wholesale_price) if product and product.wholesale_price is not None else ""),
             "cost": QLineEdit(str(product.cost_price) if product else "0.00"),
             "stock": QLineEdit(str(product.stock_quantity) if product else "0"),
             "minimum": QLineEdit(str(product.minimum_stock) if product else "0"),
@@ -95,7 +96,8 @@ class ProductDialog(QDialog):
 
         pricing_group = QGroupBox("الأسعار والكميات")
         pricing_form = QFormLayout(pricing_group)
-        pricing_form.addRow("سعر البيع", self.fields["sale"])
+        pricing_form.addRow("سعر التجزئة", self.fields["sale"])
+        pricing_form.addRow("سعر الجملة (اختياري)", self.fields["wholesale"])
         pricing_form.addRow("سعر التكلفة", self.fields["cost"])
         if not product:
             pricing_form.addRow("الرصيد الافتتاحي", self.fields["stock"])
@@ -131,6 +133,7 @@ class ProductDialog(QDialog):
                 "sku": self.fields["sku"].text(),
                 "name": self.fields["name"].text(),
                 "sale_price": Decimal(self.fields["sale"].text().strip() or "0"),
+                "wholesale_price": Decimal(self.fields["wholesale"].text().strip()) if self.fields["wholesale"].text().strip() else None,
                 "cost_price": Decimal(self.fields["cost"].text().strip() or "0"),
                 "barcode": self.fields["barcode"].text(),
                 "minimum_stock": Decimal(self.fields["minimum"].text().strip() or "0"),
