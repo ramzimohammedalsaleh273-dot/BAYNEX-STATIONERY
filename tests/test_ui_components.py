@@ -1,7 +1,7 @@
 """Tests for reusable BAYNEX Qt presentation components."""
 
-import os
 from datetime import datetime
+import os
 from types import SimpleNamespace
 
 from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget
