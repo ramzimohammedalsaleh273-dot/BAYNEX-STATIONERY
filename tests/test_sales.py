@@ -83,7 +83,7 @@ def test_sale_uses_selected_warehouse_balance_only(session):
     branch = create_warehouse(session, code="SALE-BR", name="مستودع البيع")
     record_stock_movement(
         session, product_id=product.id, warehouse_id=branch.id,
-        quantity_delta=Decimal("5"), movement_type="opening",
+        quantity_delta=Decimal(5), movement_type="opening",
         reference_type="test", reference_id=product.id,
     )
     with pytest.raises(ValueError, match="الرصيد غير كافٍ"):
