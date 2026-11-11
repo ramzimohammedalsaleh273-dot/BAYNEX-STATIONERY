@@ -502,6 +502,27 @@ class POSDialog(QDialog):
                 self.cart_table.item(item.row(), 6).text(),
                 self.cart_table.item(item.row(), 7).text(),
             )
+            if item.column() == 5:
+                product = self.cart[product_id]["product"]
+                with SessionLocal() as session:
+                    available = get_stock_balance(
+                        session, product_id, self.warehouse.currentData()
+                    )
+                requested = calc["quantity"]
+                projected = available - requested
+                if requested > available:
+                    QMessageBox.warning(
+                        self, "تنبيه نقص المخزون",
+                        f"الصنف: {product.name}\\nالرصيد المتاح: {available:.3f}\\n"
+                        f"الكمية المطلوبة: {requested:.3f}\\n"
+                        "لا يمكن ترحيل الفاتورة قبل توفير الكمية المطلوبة.",
+                    )
+                elif projected <= product.minimum_stock:
+                    QMessageBox.warning(
+                        self, "تنبيه حد المخزون",
+                        f"الرصيد المتوقع للصنف «{product.name}» بعد البيع: "
+                        f"{projected:.3f}، عند حد إعادة الطلب ({product.minimum_stock:.3f}) أو أقل.",
+                    )
             self.cart[product_id].update(
                 {key: calc[key] for key in ("quantity", "unit_price", "discount")}
             )
