@@ -58,7 +58,6 @@ def test_product_dialog_groups_related_fields_without_losing_them():
     }
 
 
-
 def test_inventory_movements_dialog_renders_real_movement_rows():
     _application()
     movement = SimpleNamespace(
