@@ -467,7 +467,7 @@ class MainWindow(QMainWindow):
         )
         answer = QMessageBox.question(
             self, "تأكيد ترحيل الجرد",
-            f"عدد الأصناف: {len(counted_values)}\\nصافي فرق الكميات: {difference_total:+g}\\n"
+            f"عدد الأصناف: {len(counted_values)}\nصافي فرق الكميات: {difference_total:+g}\\n"
             "سيتم إنشاء حركات تسوية لكل فرق. هل تريد الترحيل؟",
         )
         if answer != QMessageBox.StandardButton.Yes:
