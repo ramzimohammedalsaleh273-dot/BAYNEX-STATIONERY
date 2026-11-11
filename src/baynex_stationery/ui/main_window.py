@@ -193,6 +193,69 @@ class InventoryCountDialog(QDialog):
         return result
 
 
+class InventoryMovementsDialog(QDialog):
+    """Readable, non-editable movement history for the selected product."""
+
+    MOVEMENT_NAMES = {
+        "opening": "رصيد افتتاحي",
+        "receipt": "إدخال",
+        "issue": "صرف",
+        "sale": "بيع",
+        "transfer_in": "تحويل وارد",
+        "transfer_out": "تحويل صادر",
+        "adjustment_in": "تسوية زيادة",
+        "adjustment_out": "تسوية نقص",
+        "count_in": "زيادة جرد",
+        "count_out": "نقص جرد",
+    }
+
+    def __init__(self, movements, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("سجل حركات المخزون")
+        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.resize(900, 560)
+
+        self.table = QTableWidget(len(movements), 4)
+        self.table.setHorizontalHeaderLabels(
+            ["التاريخ والوقت", "نوع الحركة", "الكمية", "البيان"]
+        )
+        configure_data_table(self.table, row_height=40)
+        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setColumnWidth(0, 170)
+        self.table.setColumnWidth(1, 150)
+        self.table.setColumnWidth(2, 110)
+
+        for row, movement in enumerate(movements):
+            values = [
+                movement.created_at.strftime("%Y-%m-%d %H:%M"),
+                self.MOVEMENT_NAMES.get(movement.movement_type, movement.movement_type),
+                f"{movement.quantity_delta:+}",
+                movement.note or "—",
+            ]
+            for column, value in enumerate(values):
+                cell = QTableWidgetItem(str(value))
+                if column == 2:
+                    cell.setTextAlignment(
+                        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                    )
+                self.table.setItem(row, column, cell)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        buttons.rejected.connect(self.reject)
+        layout = QVBoxLayout(self)
+        layout.addWidget(
+            create_page_heading(
+                "سجل حركات المخزون",
+                f"عدد الحركات المسجلة لهذا الصنف في المستودع المحدد: {len(movements)}",
+                self,
+            )
+        )
+        layout.addWidget(self.table)
+        layout.addWidget(buttons)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -523,21 +586,13 @@ class MainWindow(QMainWindow):
                 session, product_id=product_id, warehouse_id=self.warehouse.currentData()
             )
         if not movements:
-            message = "لا توجد حركات مسجلة لهذا الصنف في المستودع المحدد."
-        else:
-            movement_names = {
-                "opening": "رصيد افتتاحي", "receipt": "إدخال", "issue": "صرف",
-                "sale": "بيع", "transfer_in": "تحويل وارد", "transfer_out": "تحويل صادر",
-                "adjustment_in": "تسوية زيادة", "adjustment_out": "تسوية نقص",
-                "count_in": "زيادة جرد", "count_out": "نقص جرد",
-            }
-            message = "\n".join(
-                f"{item.created_at:%Y-%m-%d %H:%M} | "
-                f"{movement_names.get(item.movement_type, item.movement_type)} | "
-                f"{item.quantity_delta:+} | {item.note or ''}"
-                for item in movements
+            QMessageBox.information(
+                self,
+                "سجل حركات المخزون",
+                "لا توجد حركات مسجلة لهذا الصنف في المستودع المحدد.",
             )
-        QMessageBox.information(self, "سجل حركات المخزون", message)
+            return
+        InventoryMovementsDialog(movements, self).exec()
 
     def _catalog(self):
         with SessionLocal() as session:
