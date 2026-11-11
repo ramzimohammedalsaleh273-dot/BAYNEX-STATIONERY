@@ -1,14 +1,13 @@
 """Point-of-sale workflows: persisted holds, linked returns and cashier audit."""
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from baynex_stationery.db.models import (
-    CashierEvent, Payment, Sale, SaleItem, SaleReturn, SaleReturnItem,
+    CashierEvent, Payment, Sale, SaleReturn, SaleReturnItem,
 )
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import record_stock_movement
