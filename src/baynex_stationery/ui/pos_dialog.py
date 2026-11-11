@@ -187,13 +187,10 @@ class POSDialog(QDialog):
             main_grid.setColumnStretch(col, 1 if col % 2 == 0 else 0)
         self.tabs.addTab(main_tab, "البيانات الرئيسية")
 
-        extra_tab = QWidget()
-        extra_grid = QGridLayout(extra_tab)
         self.invoice_note = QLineEdit()
-        self.invoice_note.setPlaceholderText("ملاحظات الفاتورة...")
-        extra_grid.addWidget(QLabel("البيان / ملاحظات الفاتورة"), 0, 1)
-        extra_grid.addWidget(self.invoice_note, 0, 0)
-        self.tabs.addTab(extra_tab, "بيانات إضافية")
+        self.invoice_note.setPlaceholderText("ملاحظات الفاتورة (اختياري)...")
+        main_grid.addWidget(QLabel("ملاحظات"), 4, 5)
+        main_grid.addWidget(self.invoice_note, 4, 4)
         root.addWidget(self.tabs)
 
         # Item entry row, followed by the full-width invoice grid.
@@ -529,7 +526,6 @@ class POSDialog(QDialog):
         totals = calculate_totals(lines)
         self.subtotal_label.setText(f'{totals["subtotal"]:,.2f}')
         self.discount_label.setText(f'{totals["discount"]:,.2f}')
-        self.tax_label.setText("0.00")
         self.total_label.setText(f'{totals["total"]:,.2f}')
         self.paid_preview.setText(f'{totals["total"]:,.2f}')
         self.change_preview.setText("0.00")
@@ -544,11 +540,6 @@ class POSDialog(QDialog):
         if key_item:
             self.cart.pop(key_item.data(Qt.ItemDataRole.UserRole), None)
         self.render_cart()
-
-    def edit_quantity(self):
-        row = self.cart_table.currentRow()
-        if row >= 0:
-            self.cart_table.editItem(self.cart_table.item(row, 5))
 
     def new_ticket(self):
         if self.cart and QMessageBox.question(
