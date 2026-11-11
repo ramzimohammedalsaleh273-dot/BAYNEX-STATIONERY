@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
-    QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
@@ -345,9 +344,16 @@ class POSDialog(QDialog):
         self.barcode.setFocus()
 
     def add_selected_product(self):
-        product_id = self.product_picker.currentData()
+        text = self.product_picker.currentText().strip()
+        current_index = self.product_picker.currentIndex()
+        selected_text = (
+            self.product_picker.itemText(current_index) if current_index >= 0 else ""
+        )
+        product_id = (
+            self.product_picker.itemData(current_index)
+            if text == selected_text and current_index >= 0 else None
+        )
         if product_id is None:
-            text = self.product_picker.currentText().strip()
             product = self.product_by_code.get(text)
             if product is None:
                 product = next(
