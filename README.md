@@ -40,6 +40,7 @@ python -m ruff check .
 - `docs/ARCHITECTURE.md`: المعمارية والمبادئ ودفتر المخزون.
 - `docs/PHASE_02_ACCEPTANCE.md`: قبول المرحلة الثانية.
 - `docs/PHASE_03_SCOPE.md`: نطاق ومعايير المرحلة الثالثة.
+- `docs/PHASE_03_ACCEPTANCE.md`: تقرير التنفيذ وقائمة القبول اليدوي.
 - `docs/QUALITY_GATES.md`: بوابات الجودة قبل البيع.
 
 ## الأمان والنسخ
