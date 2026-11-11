@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -85,26 +86,38 @@ class ProductDialog(QDialog):
         if product:
             self._select_data(self.category, product.category_id)
             self._select_data(self.unit, product.unit_id)
-        form = QFormLayout()
-        for key, label in [
-            ("sku", "رمز الصنف *"), ("name", "اسم الصنف *"),
-            ("barcode", "الباركود"), ("sale", "سعر البيع"),
-            ("cost", "سعر التكلفة"), ("stock", "الرصيد الافتتاحي"),
-            ("minimum", "حد إعادة الطلب"), ("notes", "ملاحظات"),
-        ]:
-            if key == "stock" and product:
-                continue
-            form.addRow(label, self.fields[key])
-        form.addRow("التصنيف", self.category)
-        form.addRow("وحدة القياس", self.unit)
+        basic_group = QGroupBox("البيانات الأساسية")
+        basic_form = QFormLayout(basic_group)
+        basic_form.addRow("رمز الصنف *", self.fields["sku"])
+        basic_form.addRow("اسم الصنف *", self.fields["name"])
+        basic_form.addRow("الباركود", self.fields["barcode"])
+        basic_form.addRow("ملاحظات", self.fields["notes"])
+
+        pricing_group = QGroupBox("الأسعار والكميات")
+        pricing_form = QFormLayout(pricing_group)
+        pricing_form.addRow("سعر البيع", self.fields["sale"])
+        pricing_form.addRow("سعر التكلفة", self.fields["cost"])
+        if not product:
+            pricing_form.addRow("الرصيد الافتتاحي", self.fields["stock"])
+        pricing_form.addRow("حد إعادة الطلب", self.fields["minimum"])
+
+        classification_group = QGroupBox("التصنيف ووحدة القياس")
+        classification_form = QFormLayout(classification_group)
+        classification_form.addRow("التصنيف", self.category)
+        classification_form.addRow("وحدة القياس", self.unit)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
         )
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout = QVBoxLayout(self)
-        layout.addLayout(form)
+        layout.setSpacing(12)
+        layout.addWidget(basic_group)
+        layout.addWidget(pricing_group)
+        layout.addWidget(classification_group)
         layout.addWidget(buttons)
+        self.setMinimumWidth(540)
 
     @staticmethod
     def _select_data(combo, value):
