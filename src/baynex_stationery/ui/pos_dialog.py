@@ -592,7 +592,7 @@ class POSDialog(QDialog):
         if self.cart:
             answer = QMessageBox.question(
                 self, "فاتورة جديدة",
-                "هل تريد تعليق الفاتورة الحالية وحفظها قبل بدء فاتورة جديدة؟\\n"
+                "هل تريد تعليق الفاتورة الحالية وحفظها قبل بدء فاتورة جديدة؟\n"
                 "اختر لا للتخلص منها نهائياً، أو إلغاء للعودة إليها.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No |
                 QMessageBox.StandardButton.Cancel,
