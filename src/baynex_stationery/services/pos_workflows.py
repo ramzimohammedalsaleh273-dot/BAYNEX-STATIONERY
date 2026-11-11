@@ -7,7 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from baynex_stationery.db.models import (
-    CashierEvent, Payment, Sale, SaleReturn, SaleReturnItem,
+    CashierEvent,
+    Payment,
+    Sale,
+    SaleReturn,
+    SaleReturnItem,
 )
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import record_stock_movement
