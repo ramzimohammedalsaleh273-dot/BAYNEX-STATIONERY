@@ -4,7 +4,7 @@ from decimal import Decimal
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
-from baynex_stationery.db.models import Category, Product, Unit
+from baynex_stationery.db.models import Category, Product, Unit, Warehouse
 from baynex_stationery.domain.pricing import decimal_value, money
 
 
@@ -104,7 +104,7 @@ def create_product(
         from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
 
         warehouse = (
-            session.get(__import__("baynex_stationery.db.models", fromlist=["Warehouse"]).Warehouse, opening_warehouse_id)
+            session.get(Warehouse, opening_warehouse_id)
             if opening_warehouse_id is not None else ensure_default_warehouse(session)
         )
         if warehouse is None or not warehouse.is_active:
