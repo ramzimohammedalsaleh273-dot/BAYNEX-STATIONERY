@@ -72,3 +72,20 @@ def test_inventory_movements_dialog_renders_real_movement_rows():
     assert dialog.table.item(0, 1).text() == "إدخال"
     assert dialog.table.item(0, 2).text() == "+5"
     assert dialog.table.item(0, 3).text() == "إدخال اختبار"
+
+
+
+def test_main_window_has_enterprise_header_grouped_actions_and_real_menus():
+    _application()
+    from baynex_stationery.ui.main_window import MainWindow
+
+    window = MainWindow()
+    assert window.findChild(QLabel, "brandName").text() == "BAYNEX"
+    groups = {group.title() for group in window.findChildren(QGroupBox)}
+    assert "إدارة الأصناف والتعريفات" in groups
+    assert "عمليات المستودعات والمخزون" in groups
+    assert "سجل الأصناف وأرصدة المستودع" in groups
+    assert [action.text() for action in window.menuBar().actions()] == [
+        "ملف", "الأصناف", "المخزون", "مساعدة"
+    ]
+    window.close()
