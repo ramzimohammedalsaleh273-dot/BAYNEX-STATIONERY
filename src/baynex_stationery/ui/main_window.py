@@ -1,6 +1,7 @@
 """Arabic RTL product catalog screen with searchable product maintenance."""
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import Qt
@@ -29,6 +30,19 @@ from baynex_stationery.services.catalog import (
     create_unit,
     list_categories,
     list_units,
+)
+from baynex_stationery.services.inventory import (
+    create_inventory_count,
+    create_inventory_transfer,
+    create_warehouse,
+    ensure_default_warehouse,
+    issue_stock,
+    list_stock_movements,
+    list_warehouses,
+    post_inventory_count,
+    post_inventory_transfer,
+    receive_stock,
+    set_inventory_count_line,
 )
 from baynex_stationery.services.products import (
     create_product,
@@ -134,8 +148,20 @@ class MainWindow(QMainWindow):
         self.category_button = QPushButton("إضافة تصنيف")
         self.unit_button = QPushButton("إضافة وحدة")
         self.refresh_button = QPushButton("تحديث")
-        for widget in (self.add_button, self.edit_button, self.deactivate_button,
-                       self.category_button, self.unit_button, self.refresh_button):
+        self.warehouse = QComboBox()
+        self.add_warehouse_button = QPushButton("إضافة مستودع")
+        self.receive_button = QPushButton("إدخال مخزون")
+        self.issue_button = QPushButton("صرف مخزون")
+        self.transfer_button = QPushButton("تحويل")
+        self.count_button = QPushButton("جرد الصنف")
+        self.movements_button = QPushButton("سجل الحركات")
+        for widget in (
+            self.add_button, self.edit_button, self.deactivate_button,
+            self.category_button, self.unit_button, self.refresh_button,
+            self.warehouse, self.add_warehouse_button, self.receive_button,
+            self.issue_button, self.transfer_button, self.count_button,
+            self.movements_button,
+        ):
             toolbar.addWidget(widget)
         toolbar.addWidget(self.search, 1)
 
@@ -161,9 +187,184 @@ class MainWindow(QMainWindow):
         self.category_button.clicked.connect(self.add_category)
         self.unit_button.clicked.connect(self.add_unit)
         self.refresh_button.clicked.connect(self.refresh_products)
+        self.add_warehouse_button.clicked.connect(self.add_warehouse)
+        self.receive_button.clicked.connect(self.receive_selected)
+        self.issue_button.clicked.connect(self.issue_selected)
+        self.transfer_button.clicked.connect(self.transfer_selected)
+        self.count_button.clicked.connect(self.count_selected)
+        self.movements_button.clicked.connect(self.show_movements)
         self.search.textChanged.connect(self.refresh_products)
+        self._refresh_warehouses()
         self.table.doubleClicked.connect(self.edit_product)
         self.refresh_products()
+
+
+    def _refresh_warehouses(self):
+        with SessionLocal.begin() as session:
+            default = ensure_default_warehouse(session)
+            warehouses = list_warehouses(session)
+        selected = self.warehouse.currentData()
+        self.warehouse.clear()
+        for item in warehouses:
+            self.warehouse.addItem(item.name, item.id)
+        index = self.warehouse.findData(selected if selected is not None else default.id)
+        if index >= 0:
+            self.warehouse.setCurrentIndex(index)
+
+    def _inventory_product_id(self):
+        product_id = self._selected_product_id()
+        if product_id is None:
+            QMessageBox.information(self, "المخزون", "حدد صنفاً من الجدول أولاً")
+            return None
+        if self.warehouse.currentData() is None:
+            QMessageBox.warning(self, "المخزون", "لا يوجد مستودع نشط")
+            return None
+        return product_id
+
+    def add_warehouse(self):
+        code, accepted = QInputDialog.getText(self, "إضافة مستودع", "رمز المستودع:")
+        if not accepted:
+            return
+        name, accepted = QInputDialog.getText(self, "إضافة مستودع", "اسم المستودع:")
+        if not accepted:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                create_warehouse(session, code=code, name=name)
+            self._refresh_warehouses()
+            QMessageBox.information(self, "المستودعات", "تم إنشاء المستودع")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر إنشاء المستودع", str(exc))
+
+    def _manual_quantity(self, title):
+        value, accepted = QInputDialog.getText(self, title, "أدخل الكمية (حتى 3 خانات عشرية):")
+        if not accepted:
+            return None
+        try:
+            amount = Decimal(value.strip())
+            if not amount.is_finite() or amount < 0:
+                raise ValueError
+            return amount
+        except Exception:
+            QMessageBox.warning(self, title, "أدخل كمية رقمية صحيحة غير سالبة")
+            return None
+
+    def receive_selected(self):
+        product_id = self._inventory_product_id()
+        if product_id is None:
+            return
+        quantity = self._manual_quantity("إدخال مخزون")
+        if quantity is None or quantity == 0:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                receive_stock(
+                    session, product_id=product_id, warehouse_id=self.warehouse.currentData(),
+                    quantity=quantity, note="إدخال يدوي من شاشة المخزون",
+                )
+            self.refresh_products()
+            QMessageBox.information(self, "المخزون", "تم تسجيل إدخال المخزون")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر إدخال المخزون", str(exc))
+
+    def issue_selected(self):
+        product_id = self._inventory_product_id()
+        if product_id is None:
+            return
+        quantity = self._manual_quantity("صرف مخزون")
+        if quantity is None or quantity == 0:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                issue_stock(
+                    session, product_id=product_id, warehouse_id=self.warehouse.currentData(),
+                    quantity=quantity, note="صرف يدوي من شاشة المخزون",
+                )
+            self.refresh_products()
+            QMessageBox.information(self, "المخزون", "تم تسجيل صرف المخزون")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر صرف المخزون", str(exc))
+
+    def transfer_selected(self):
+        product_id = self._inventory_product_id()
+        if product_id is None:
+            return
+        with SessionLocal() as session:
+            destinations = [
+                item for item in list_warehouses(session)
+                if item.id != self.warehouse.currentData()
+            ]
+        if not destinations:
+            QMessageBox.information(self, "تحويل المخزون", "أنشئ مستودعاً آخر أولاً")
+            return
+        names = [item.name for item in destinations]
+        name, accepted = QInputDialog.getItem(
+            self, "تحويل المخزون", "المستودع الوجهة:", names, 0, False
+        )
+        if not accepted:
+            return
+        destination = next(item for item in destinations if item.name == name)
+        quantity = self._manual_quantity("تحويل المخزون")
+        if quantity is None or quantity == 0:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                transfer = create_inventory_transfer(
+                    session,
+                    number=f"TR-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+                    source_warehouse_id=self.warehouse.currentData(),
+                    destination_warehouse_id=destination.id,
+                    lines=[{"product_id": product_id, "quantity": quantity}],
+                    note="تحويل من شاشة المخزون",
+                )
+                post_inventory_transfer(session, transfer_id=transfer.id)
+            self.refresh_products()
+            QMessageBox.information(self, "تحويل المخزون", "تم ترحيل التحويل بنجاح")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر التحويل", str(exc))
+
+    def count_selected(self):
+        product_id = self._inventory_product_id()
+        if product_id is None:
+            return
+        quantity = self._manual_quantity("جرد الصنف")
+        if quantity is None:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                count = create_inventory_count(
+                    session,
+                    number=f"CO-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
+                    warehouse_id=self.warehouse.currentData(),
+                    note="جرد من شاشة المخزون",
+                )
+                set_inventory_count_line(
+                    session, count_id=count.id, product_id=product_id,
+                    counted_quantity=quantity,
+                )
+                post_inventory_count(session, count_id=count.id)
+            self.refresh_products()
+            QMessageBox.information(self, "الجرد", "تم اعتماد فرق الجرد وتسجيل حركة التسوية")
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر ترحيل الجرد", str(exc))
+
+    def show_movements(self):
+        product_id = self._inventory_product_id()
+        if product_id is None:
+            return
+        with SessionLocal() as session:
+            movements = list_stock_movements(
+                session, product_id=product_id, warehouse_id=self.warehouse.currentData()
+            )
+        if not movements:
+            message = "لا توجد حركات مسجلة لهذا الصنف في المستودع المحدد."
+        else:
+            message = "\n".join(
+                f"{item.created_at:%Y-%m-%d %H:%M} | {item.movement_type} | "
+                f"{item.quantity_delta:+} | {item.note or ''}"
+                for item in movements
+            )
+        QMessageBox.information(self, "سجل حركات المخزون", message)
 
     def _catalog(self):
         with SessionLocal() as session:
