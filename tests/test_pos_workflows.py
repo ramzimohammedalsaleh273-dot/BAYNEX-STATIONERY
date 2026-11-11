@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Payment, Product, Sale
+from baynex_stationery.db.models import Payment, Product
 from baynex_stationery.services.inventory import ensure_default_warehouse, get_stock_balance, record_stock_movement
 from baynex_stationery.services.pos_workflows import create_sale_return, list_held_sales
 from baynex_stationery.services.sales import create_sale, post_sale
