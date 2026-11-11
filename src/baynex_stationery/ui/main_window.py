@@ -25,8 +25,6 @@ from PySide6.QtWidgets import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
-
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.catalog import (
     create_category,
@@ -57,6 +55,8 @@ from baynex_stationery.services.products import (
     set_product_active,
     update_product,
 )
+
+from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
 
 class ProductDialog(QDialog):
