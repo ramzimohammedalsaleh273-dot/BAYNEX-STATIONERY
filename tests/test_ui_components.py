@@ -1,14 +1,13 @@
 """Tests for reusable BAYNEX Qt presentation components."""
 
-from datetime import datetime
 import os
+from datetime import datetime
 from types import SimpleNamespace
 
 from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget
 
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
-
 
 _APP = None
 
