@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Product
-from baynex_stationery.ui import main_window
+from baynex_stationery.ui import main_window, pos_dialog
 
 
 @pytest.fixture(scope="module")
@@ -61,3 +61,74 @@ def test_add_and_refresh_buttons_use_database(qapp, isolated_database, monkeypat
         assert window.table.rowCount() == 1
     finally:
         window.close()
+
+
+
+def test_pos_grid_locks_catalog_price_and_exposes_cashier_workflows(qapp, isolated_database, monkeypatch):
+    from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
+    monkeypatch.setattr(pos_dialog, "SessionLocal", isolated_database)
+    with isolated_database.begin() as session:
+        warehouse = ensure_default_warehouse(session)
+        product = Product(
+            sku="POS-UI-01", name="قلم اختبار", unit="قطعة",
+            cost_price=Decimal("2.00"), sale_price=Decimal("5.00"),
+            wholesale_price=Decimal("4.50"),
+            stock_quantity=Decimal("10.000"), minimum_stock=Decimal("1.000"),
+        )
+        session.add(product)
+        session.flush()
+        product_id = product.id
+        record_stock_movement(
+            session, product_id=product.id, warehouse_id=warehouse.id,
+            quantity_delta=Decimal("10.000"), movement_type="opening",
+            reference_type="test", reference_id=product.id,
+        )
+    window = pos_dialog.POSDialog()
+    try:
+        window.price_type.setCurrentIndex(1)
+        window.add_product(product_id)
+        assert window.cart[product_id]["unit_price"] == Decimal("4.50")
+        assert not window.price_type.isEnabled()
+        assert window.cart_table.columnCount() == 9
+        assert window.cart_table.rowCount() >= 12
+        price_flags = window.cart_table.item(0, 6).flags()
+        quantity_flags = window.cart_table.item(0, 5).flags()
+        discount_flags = window.cart_table.item(0, 7).flags()
+        from PySide6.QtCore import Qt
+        assert not (price_flags & Qt.ItemFlag.ItemIsEditable)
+        assert quantity_flags & Qt.ItemFlag.ItemIsEditable
+        assert not (discount_flags & Qt.ItemFlag.ItemIsEditable)
+        assert window.hold_button.parent() is not None
+        assert window.return_button.text() == "مرتجع مبيعات"
+        assert window.history_button.text() == "سجل الكاشير"
+    finally:
+        window.cart.clear()
+        window.close()
+
+
+
+def test_pos_payment_dialog_supports_partial_tender(qapp):
+    dialog = pos_dialog.POSPaymentDialog(Decimal("100.00"))
+    dialog.received.setText("40.00")
+    dialog._validate()
+    assert dialog.paid_amount == Decimal("40.00")
+    assert dialog.change_amount == Decimal("0.00")
+    assert dialog.remaining.text() == "60.00"
+    dialog.close()
+
+
+
+def test_pos_payment_dialog_splits_tender_between_two_methods(qapp):
+    dialog = pos_dialog.POSPaymentDialog(Decimal("100.00"))
+    dialog.received.setText("70.00")
+    dialog.secondary_method.setCurrentIndex(dialog.secondary_method.findData("card"))
+    dialog.secondary_amount.setText("20.00")
+    dialog._validate()
+    assert dialog.paid_amount == Decimal("70.00")
+    assert dialog.payment_method == "mixed"
+    assert dialog.payment_lines == [
+        ("cash", Decimal("50.00")),
+        ("card", Decimal("20.00")),
+    ]
+    assert dialog.remaining.text() == "30.00"
+    dialog.close()
