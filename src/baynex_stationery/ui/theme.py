@@ -3,7 +3,6 @@
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
-
 BAYNEX_STYLESHEET = """
 QWidget {
     color: #243247;
