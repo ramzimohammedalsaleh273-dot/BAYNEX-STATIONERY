@@ -9,6 +9,7 @@ from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockM
 from baynex_stationery.services.inventory import (
     create_warehouse,
     ensure_default_warehouse,
+    get_stock_balance,
     record_stock_movement,
 )
 from baynex_stationery.services.sales import post_sale
