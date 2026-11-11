@@ -607,6 +607,11 @@ class POSDialog(QDialog):
                 )
                 held.status = "held"
                 session.flush()
+                log_cashier_event(
+                    session, action="sale_held", reference_type="sale",
+                    reference_id=held.id, reference_number=held.number,
+                    amount=held.total, details="تم تعليق الفاتورة دون ترحيل المخزون",
+                )
                 held_number = held.number
             self.cart.clear()
             self.new_ticket_after_hold()
