@@ -269,7 +269,7 @@ class MainWindow(QMainWindow):
             if not amount.is_finite() or amount < 0:
                 raise ValueError
             return amount
-        except Exception:
+        except (InvalidOperation, ValueError):
             QMessageBox.warning(self, title, "أدخل كمية رقمية صحيحة غير سالبة")
             return None
 
