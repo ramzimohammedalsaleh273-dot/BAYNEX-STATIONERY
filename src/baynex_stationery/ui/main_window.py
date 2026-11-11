@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QToolBar,
     QVBoxLayout,
     QWidget,
 )
@@ -267,86 +268,81 @@ class MainWindow(QMainWindow):
         root = QWidget()
         root.setObjectName("applicationRoot")
         layout = QVBoxLayout(root)
-        layout.setContentsMargins(18, 14, 18, 12)
-        layout.setSpacing(12)
-
-        brand_bar = QFrame(root)
-        brand_bar.setObjectName("brandBar")
-        brand_layout = QHBoxLayout(brand_bar)
-        brand_layout.setContentsMargins(16, 10, 16, 10)
-        brand_text = QVBoxLayout()
-        brand_name = QLabel("BAYNEX")
-        brand_name.setObjectName("brandName")
-        brand_caption = QLabel("نظام إدارة القرطاسية والمخزون")
-        brand_caption.setObjectName("brandCaption")
-        brand_text.addWidget(brand_name)
-        brand_text.addWidget(brand_caption)
-        brand_layout.addLayout(brand_text)
-        brand_layout.addStretch(1)
-        brand_version = QLabel("نظام مكتبي متكامل")
-        brand_version.setObjectName("brandVersion")
-        brand_layout.addWidget(brand_version)
+        layout.setContentsMargins(10, 8, 10, 8)
+        layout.setSpacing(7)
 
         heading = create_page_heading(
             "إدارة الأصناف والمخزون",
-            "إدارة بيانات الأصناف والتصنيفات ووحدات القياس والباركود وأرصدة المستودعات",
+            "تعريف الأصناف ومتابعة الأرصدة وحركات المستودعات",
             root,
         )
         self.search = QLineEdit()
         self.search.setClearButtonEnabled(True)
-        self.search.setMinimumWidth(220)
-        self.search.setPlaceholderText("ابحث بالاسم أو الرمز أو الباركود...")
-        self.add_button = QPushButton("إضافة صنف")
-        self.edit_button = QPushButton("تعديل المحدد")
-        self.deactivate_button = QPushButton("إيقاف الصنف")
-        self.category_button = QPushButton("إضافة تصنيف")
-        self.unit_button = QPushButton("إضافة وحدة")
+        self.search.setMinimumWidth(240)
+        self.search.setPlaceholderText("بحث سريع: الاسم أو الرمز أو الباركود...")
+        self.add_button = QPushButton("جديد")
+        self.edit_button = QPushButton("تعديل")
+        self.deactivate_button = QPushButton("إيقاف")
+        self.category_button = QPushButton("التصنيفات")
+        self.unit_button = QPushButton("وحدات القياس")
         self.refresh_button = QPushButton("تحديث")
         self.warehouse = QComboBox()
-        self.add_warehouse_button = QPushButton("إضافة مستودع")
+        self.add_warehouse_button = QPushButton("مستودع جديد")
         self.edit_warehouse_button = QPushButton("تعديل المستودع")
         self.deactivate_warehouse_button = QPushButton("إيقاف المستودع")
-        self.receive_button = QPushButton("إدخال مخزون")
-        self.issue_button = QPushButton("صرف مخزون")
+        self.receive_button = QPushButton("إدخال")
+        self.issue_button = QPushButton("صرف")
         self.transfer_button = QPushButton("تحويل")
-        self.count_button = QPushButton("جرد المستودع")
-        self.movements_button = QPushButton("سجل الحركات")
-        for button in (
+        self.count_button = QPushButton("الجرد")
+        self.movements_button = QPushButton("الحركات")
+
+        action_buttons = (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
             self.add_warehouse_button, self.edit_warehouse_button,
             self.deactivate_warehouse_button, self.receive_button, self.issue_button,
             self.transfer_button, self.count_button, self.movements_button,
-        ):
-            button.setMinimumHeight(34)
+        )
+        for button in action_buttons:
+            button.setMinimumHeight(29)
+            button.setMinimumWidth(68)
         self.add_button.setObjectName("primaryAction")
         self.receive_button.setObjectName("primaryAction")
+        self.warehouse.setMinimumWidth(155)
+        self.warehouse.setMinimumHeight(29)
 
-        catalog_group = QGroupBox("إدارة الأصناف والتعريفات")
-        catalog_layout = QHBoxLayout(catalog_group)
-        catalog_layout.setContentsMargins(10, 12, 10, 10)
-        for widget in (
+        catalog_toolbar = QToolBar("إدارة الأصناف", self)
+        catalog_toolbar.setObjectName("catalogToolbar")
+        catalog_toolbar.setMovable(False)
+        catalog_toolbar.setFloatable(False)
+        catalog_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        for button in (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
         ):
-            catalog_layout.addWidget(widget)
-        catalog_layout.addWidget(self.search, 1)
+            catalog_toolbar.addWidget(button)
+        catalog_toolbar.addSeparator()
+        catalog_toolbar.addWidget(self.search)
 
-        inventory_group = QGroupBox("عمليات المستودعات والمخزون")
-        inventory_toolbar = QHBoxLayout(inventory_group)
-        inventory_toolbar.setContentsMargins(10, 12, 10, 10)
+        stock_toolbar = QToolBar("عمليات المخزون", self)
+        stock_toolbar.setObjectName("stockToolbar")
+        stock_toolbar.setMovable(False)
+        stock_toolbar.setFloatable(False)
+        stock_toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         for widget in (
             self.warehouse, self.add_warehouse_button, self.edit_warehouse_button,
             self.deactivate_warehouse_button, self.receive_button, self.issue_button,
             self.transfer_button, self.count_button, self.movements_button,
         ):
-            inventory_toolbar.addWidget(widget)
+            stock_toolbar.addWidget(widget)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, catalog_toolbar)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, stock_toolbar)
 
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(
-            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "رصيد المستودع"]
+            ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "الرصيد"]
         )
-        configure_data_table(self.table)
+        configure_data_table(self.table, row_height=32)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -358,16 +354,13 @@ class MainWindow(QMainWindow):
         self.table.setColumnWidth(5, 125)
         self.table.setColumnWidth(6, 125)
 
-        table_group = QGroupBox("سجل الأصناف وأرصدة المستودع")
-        table_layout = QVBoxLayout(table_group)
-        table_layout.setContentsMargins(8, 12, 8, 8)
+        table_frame = QGroupBox("بيانات الأصناف وأرصدة المستودع")
+        table_layout = QVBoxLayout(table_frame)
+        table_layout.setContentsMargins(6, 10, 6, 6)
         table_layout.addWidget(self.table)
 
-        layout.addWidget(brand_bar)
         layout.addWidget(heading)
-        layout.addWidget(catalog_group)
-        layout.addWidget(inventory_group)
-        layout.addWidget(table_group, 1)
+        layout.addWidget(table_frame, 1)
         self.setCentralWidget(root)
 
         file_menu = self.menuBar().addMenu("ملف")
