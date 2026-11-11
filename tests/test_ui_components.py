@@ -2,9 +2,10 @@
 
 import os
 
-from PySide6.QtWidgets import QApplication, QLabel, QTableWidget
+from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget
 
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.main_window import ProductDialog
 
 
 def _application():
@@ -34,3 +35,18 @@ def test_data_table_configuration_preserves_rows_and_sets_readable_defaults():
     assert table.verticalHeader().defaultSectionSize() == 41
     assert table.horizontalHeader().minimumHeight() == 42
     assert table.horizontalHeader().stretchLastSection()
+
+
+
+def test_product_dialog_groups_related_fields_without_losing_them():
+    _application()
+    dialog = ProductDialog([], [])
+
+    assert {group.title() for group in dialog.findChildren(QGroupBox)} == {
+        "البيانات الأساسية",
+        "الأسعار والكميات",
+        "التصنيف ووحدة القياس",
+    }
+    assert set(dialog.fields) == {
+        "sku", "name", "barcode", "sale", "cost", "stock", "minimum", "notes"
+    }
