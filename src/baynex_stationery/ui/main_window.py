@@ -24,6 +24,8 @@ from PySide6.QtWidgets import (
 )
 from sqlalchemy.exc import SQLAlchemyError
 
+from baynex_stationery.ui.components import configure_data_table, create_page_heading
+
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.catalog import (
     create_category,
@@ -187,9 +189,11 @@ class MainWindow(QMainWindow):
 
         root = QWidget()
         layout = QVBoxLayout(root)
-        header = QLabel("BAYNEX STATIONERY")
-        header.setStyleSheet("font-size: 24px; font-weight: 700; padding: 12px;")
-        subtitle = QLabel("إدارة الأصناف والتصنيفات ووحدات القياس والباركود")
+        heading = create_page_heading(
+            "إدارة الأصناف والمخزون",
+            "إدارة بيانات الأصناف والتصنيفات ووحدات القياس والباركود وأرصدة المستودعات",
+            root,
+        )
         toolbar = QHBoxLayout()
         self.search = QLineEdit()
         self.search.setPlaceholderText("ابحث بالاسم أو الرمز أو الباركود...")
@@ -228,14 +232,19 @@ class MainWindow(QMainWindow):
         self.table.setHorizontalHeaderLabels(
             ["الرمز", "الباركود", "اسم الصنف", "التصنيف", "الوحدة", "سعر التكلفة", "سعر البيع", "رصيد المستودع"]
         )
-        self.table.setAlternatingRowColors(True)
+        configure_data_table(self.table)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.horizontalHeader().setStretchLastSection(True)
+        self.table.setColumnWidth(0, 105)
+        self.table.setColumnWidth(1, 145)
+        self.table.setColumnWidth(2, 250)
+        self.table.setColumnWidth(3, 150)
+        self.table.setColumnWidth(4, 90)
+        self.table.setColumnWidth(5, 125)
+        self.table.setColumnWidth(6, 125)
 
-        layout.addWidget(header)
-        layout.addWidget(subtitle)
+        layout.addWidget(heading)
         layout.addLayout(toolbar)
         layout.addLayout(inventory_toolbar)
         layout.addWidget(self.table)
@@ -537,7 +546,12 @@ class MainWindow(QMainWindow):
                     cell = QTableWidgetItem(str(value))
                     if column == 0:
                         cell.setData(Qt.ItemDataRole.UserRole, product.id)
+                    if column in (5, 6, 7):
+                        cell.setTextAlignment(
+                            Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                        )
                     self.table.setItem(row, column, cell)
+        self.statusBar().showMessage(f"عدد الأصناف المعروضة: {len(products)}")
 
     def _selected_product_id(self):
         row = self.table.currentRow()
