@@ -85,3 +85,30 @@ def test_return_cannot_exceed_unreturned_quantity(session):
             session, number="RET-003", sale_id=sale.id,
             lines=[{"sale_item_id": sale.items[0].id, "quantity": "1.000"}],
         )
+
+
+
+def test_return_cannot_refund_more_than_collected_amount(session):
+    warehouse = ensure_default_warehouse(session)
+    product = Product(
+        sku="CREDIT-01", name="دفتر آجل", unit="قطعة",
+        cost_price=Decimal("2"), sale_price=Decimal("5"),
+    )
+    session.add(product)
+    session.flush()
+    record_stock_movement(
+        session, product_id=product.id, warehouse_id=warehouse.id,
+        quantity_delta=Decimal("2"), movement_type="opening",
+        reference_type="test", reference_id=product.id,
+    )
+    sale = create_sale(
+        session, number="CREDIT-SALE-01", warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "2"}],
+        paid_amount=Decimal("0.00"),
+    )
+    post_sale(session, sale_id=sale.id)
+    with pytest.raises(ValueError, match="لم تُحصّل"):
+        create_sale_return(
+            session, number="CREDIT-RET-01", sale_id=sale.id,
+            lines=[{"sale_item_id": sale.items[0].id, "quantity": "1"}],
+        )
