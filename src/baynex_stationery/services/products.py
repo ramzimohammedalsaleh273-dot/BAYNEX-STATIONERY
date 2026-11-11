@@ -66,6 +66,7 @@ def create_product(
     name: str,
     sale_price: Decimal,
     cost_price: Decimal = Decimal(0),
+    wholesale_price: Decimal | None = None,
     opening_stock: Decimal = Decimal(0),
     opening_warehouse_id: int | None = None,
     barcode: str | None = None,
@@ -80,6 +81,10 @@ def create_product(
     unit = _required_text(unit, "الوحدة", 32)
     sale_price = money(_non_negative(sale_price, "سعر البيع", "0.01"))
     cost_price = money(_non_negative(cost_price, "سعر التكلفة", "0.01"))
+    wholesale_price = (
+        money(_non_negative(wholesale_price, "سعر الجملة", "0.01"))
+        if wholesale_price is not None else None
+    )
     opening_stock = _non_negative(opening_stock, "الرصيد الافتتاحي", "0.001")
     minimum_stock = _non_negative(minimum_stock, "حد إعادة الطلب", "0.001")
     barcode = _required_text(barcode, "الباركود", 64) if barcode and barcode.strip() else None
@@ -94,7 +99,7 @@ def create_product(
         unit = unit_record.symbol
     product = Product(
         sku=sku, name=name, sale_price=sale_price, cost_price=cost_price,
-        stock_quantity=opening_stock, minimum_stock=minimum_stock,
+        wholesale_price=wholesale_price, stock_quantity=opening_stock, minimum_stock=minimum_stock,
         barcode=barcode, unit=unit, unit_id=unit_id, category_id=category_id,
         notes=notes.strip() or None if notes else None,
     )
@@ -125,7 +130,7 @@ def update_product(session: Session, product_id: int, **changes) -> Product:
     product = session.get(Product, product_id)
     if product is None:
         raise ValueError("الصنف غير موجود")
-    allowed = {"sku", "name", "sale_price", "cost_price", "barcode", "unit", "unit_id", "category_id", "minimum_stock", "notes"}
+    allowed = {"sku", "name", "sale_price", "cost_price", "wholesale_price", "barcode", "unit", "unit_id", "category_id", "minimum_stock", "notes"}
     unknown = set(changes) - allowed
     if unknown:
         raise ValueError(f"حقول غير مسموح بتعديلها: {', '.join(sorted(unknown))}")
@@ -137,6 +142,11 @@ def update_product(session: Session, product_id: int, **changes) -> Product:
         if field in changes:
             product_value = money(_non_negative(changes[field], label, "0.01"))
             setattr(product, field, product_value)
+    if "wholesale_price" in changes:
+        value = changes["wholesale_price"]
+        product.wholesale_price = (
+            money(_non_negative(value, "سعر الجملة", "0.01")) if value is not None else None
+        )
     if "barcode" in changes:
         value = changes["barcode"]
         product.barcode = _required_text(value, "الباركود", 64) if value and value.strip() else None
