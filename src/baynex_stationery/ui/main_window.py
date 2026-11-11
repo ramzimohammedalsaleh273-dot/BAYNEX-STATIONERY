@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from typing import ClassVar
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -55,7 +56,6 @@ from baynex_stationery.services.products import (
     set_product_active,
     update_product,
 )
-
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
 
@@ -196,7 +196,7 @@ class InventoryCountDialog(QDialog):
 class InventoryMovementsDialog(QDialog):
     """Readable, non-editable movement history for the selected product."""
 
-    MOVEMENT_NAMES = {
+    MOVEMENT_NAMES: ClassVar[dict[str, str]] = {
         "opening": "رصيد افتتاحي",
         "receipt": "إدخال",
         "issue": "صرف",
