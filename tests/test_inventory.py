@@ -6,8 +6,6 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import (
-    InventoryCount,
-    InventoryTransfer,
     Product,
     StockMovement,
 )
