@@ -198,3 +198,21 @@ def test_warehouse_can_be_renamed_and_default_reassigned(session):
     assert main.is_default is False
     with pytest.raises(ValueError, match="عيّن مستودعاً افتراضياً"):
         update_warehouse(session, second.id, is_default=False)
+
+
+
+def test_stocktake_uses_original_snapshot_and_rejects_intervening_movement(session):
+    product = make_product(session, "P-201")
+    main = ensure_default_warehouse(session)
+    receive_stock(session, product_id=product.id, warehouse_id=main.id, quantity="10")
+    original_snapshot = [(product.id, get_stock_balance(session, product.id, main.id))]
+    issue_stock(session, product_id=product.id, warehouse_id=main.id, quantity="1")
+    count = create_inventory_count(
+        session, number="CO-004", warehouse_id=main.id, snapshot=original_snapshot
+    )
+    set_inventory_count_line(
+        session, count_id=count.id, product_id=product.id, counted_quantity="10"
+    )
+    with pytest.raises(ValueError, match="تغير رصيد"):
+        post_inventory_count(session, count_id=count.id)
+    assert get_stock_balance(session, product.id, main.id) == Decimal("9.000")
