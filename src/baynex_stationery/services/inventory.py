@@ -88,11 +88,14 @@ def set_warehouse_active(session: Session, warehouse_id: int, active: bool) -> W
     if not active:
         if warehouse.is_default:
             raise ValueError("لا يمكن إيقاف المستودع الافتراضي")
-        balance = session.scalar(
-            select(func.coalesce(func.sum(StockMovement.quantity_delta), 0))
+        nonzero = session.execute(
+            select(StockMovement.product_id)
             .where(StockMovement.warehouse_id == warehouse_id)
-        )
-        if Decimal(str(balance or 0)) != 0:
+            .group_by(StockMovement.product_id)
+            .having(func.sum(StockMovement.quantity_delta) != 0)
+            .limit(1)
+        ).first()
+        if nonzero is not None:
             raise ValueError("لا يمكن إيقاف مستودع لديه رصيد مخزون غير صفري")
     warehouse.is_active = bool(active)
     session.flush()
@@ -138,6 +141,12 @@ def record_stock_movement(
 ) -> StockMovement:
     if movement_type not in ALLOWED_MOVEMENT_TYPES:
         raise ValueError("نوع حركة المخزون غير معروف")
+    positive_types = {"opening", "receipt", "transfer_in", "adjustment_in", "count_in"}
+    negative_types = {"issue", "sale", "transfer_out", "adjustment_out", "count_out"}
+    if movement_type in positive_types and Decimal(str(quantity_delta)) <= 0:
+        raise ValueError("هذا النوع من الحركة يتطلب كمية موجبة")
+    if movement_type in negative_types and Decimal(str(quantity_delta)) >= 0:
+        raise ValueError("هذا النوع من الحركة يتطلب كمية سالبة")
     try:
         delta = Decimal(str(quantity_delta))
     except (InvalidOperation, TypeError, ValueError) as exc:
