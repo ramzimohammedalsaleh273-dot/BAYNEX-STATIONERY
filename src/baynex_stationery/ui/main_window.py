@@ -39,6 +39,7 @@ from baynex_stationery.services.inventory import (
     get_stock_balance,
     issue_stock,
     list_stock_movements,
+    list_stock_balances,
     list_warehouses,
     post_inventory_count,
     post_inventory_transfer,
@@ -130,6 +131,53 @@ class ProductDialog(QDialog):
             raise ValueError("أدخل أرقاماً صحيحة في حقول الأسعار والكميات") from exc
 
 
+class InventoryCountDialog(QDialog):
+    def __init__(self, balances, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("جرد المستودع")
+        self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
+        self.resize(760, 560)
+        self.table = QTableWidget(len(balances), 3)
+        self.table.setHorizontalHeaderLabels(["اسم الصنف", "الرصيد الدفتري", "الكمية الفعلية"])
+        self.table.setAlternatingRowColors(True)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked | QTableWidget.EditTrigger.EditKeyPressed)
+        for row, (product, balance) in enumerate(balances):
+            name = QTableWidgetItem(product.name)
+            name.setData(Qt.ItemDataRole.UserRole, product.id)
+            name.setFlags(name.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            book = QTableWidgetItem(f"{balance:g}")
+            book.setFlags(book.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            actual = QTableWidgetItem(f"{balance:g}")
+            self.table.setItem(row, 0, name)
+            self.table.setItem(row, 1, book)
+            self.table.setItem(row, 2, actual)
+        self.table.horizontalHeader().setStretchLastSection(True)
+        buttons = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Save | QDialogButtonBox.StandardButton.Cancel
+        )
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout = QVBoxLayout(self)
+        layout.addWidget(QLabel("راجع الرصيد الفعلي لكل صنف، وعدّل الكميات التي تختلف عن الرصيد الدفتري."))
+        layout.addWidget(self.table)
+        layout.addWidget(buttons)
+
+    def values(self):
+        result = []
+        for row in range(self.table.rowCount()):
+            product_id = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+            try:
+                quantity = Decimal(self.table.item(row, 2).text().strip())
+            except (InvalidOperation, AttributeError) as exc:
+                raise ValueError(f"الكمية الفعلية غير صالحة في السطر {row + 1}") from exc
+            if not quantity.is_finite() or quantity < 0:
+                raise ValueError(f"الكمية الفعلية يجب ألا تكون سالبة في السطر {row + 1}")
+            if quantity != quantity.quantize(Decimal("0.001")):
+                raise ValueError(f"الكمية الفعلية تقبل ثلاث خانات عشرية في السطر {row + 1}")
+            result.append((product_id, quantity))
+        return result
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -158,7 +206,7 @@ class MainWindow(QMainWindow):
         self.receive_button = QPushButton("إدخال مخزون")
         self.issue_button = QPushButton("صرف مخزون")
         self.transfer_button = QPushButton("تحويل")
-        self.count_button = QPushButton("جرد الصنف")
+        self.count_button = QPushButton("جرد المستودع")
         self.movements_button = QPushButton("سجل الحركات")
         for widget in (
             self.add_button, self.edit_button, self.deactivate_button,
@@ -395,18 +443,32 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "تعذر التحويل", str(exc))
 
     def count_selected(self):
-        product_id = self._inventory_product_id()
-        if product_id is None:
-            return
-        quantity = self._manual_quantity("جرد الصنف")
-        if quantity is None:
+        warehouse_id = self.warehouse.currentData()
+        if warehouse_id is None or not self.warehouse.currentData(Qt.ItemDataRole.UserRole + 1):
+            QMessageBox.warning(self, "الجرد", "اختر مستودعاً نشطاً أولاً")
             return
         with SessionLocal() as session:
-            book_quantity = get_stock_balance(session, product_id, self.warehouse.currentData())
-        difference = quantity - book_quantity
+            balances = list_stock_balances(session, warehouse_id=warehouse_id)
+        if not balances:
+            QMessageBox.information(self, "الجرد", "لا توجد أصناف نشطة لجردها")
+            return
+        dialog = InventoryCountDialog(balances, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        try:
+            counted_values = dialog.values()
+        except ValueError as exc:
+            QMessageBox.warning(self, "بيانات الجرد غير صحيحة", str(exc))
+            return
+        difference_total = sum(
+            (counted - balance for (_product, balance), (_product_id, counted)
+             in zip(balances, counted_values, strict=True)),
+            Decimal("0"),
+        )
         answer = QMessageBox.question(
-            self, "تأكيد الجرد",
-            f"الرصيد الدفتري: {book_quantity:g}\\nالكمية الفعلية: {quantity:g}\\nالفرق: {difference:+g}\\nهل تريد اعتماد التسوية؟",
+            self, "تأكيد ترحيل الجرد",
+            f"عدد الأصناف: {len(counted_values)}\\nصافي فرق الكميات: {difference_total:+g}\\n"
+            "سيتم إنشاء حركات تسوية لكل فرق. هل تريد الترحيل؟",
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -415,16 +477,17 @@ class MainWindow(QMainWindow):
                 count = create_inventory_count(
                     session,
                     number=f"CO-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
-                    warehouse_id=self.warehouse.currentData(),
-                    note="جرد من شاشة المخزون",
+                    warehouse_id=warehouse_id,
+                    note="جرد شامل من شاشة المخزون",
                 )
-                set_inventory_count_line(
-                    session, count_id=count.id, product_id=product_id,
-                    counted_quantity=quantity,
-                )
+                for product_id, counted in counted_values:
+                    set_inventory_count_line(
+                        session, count_id=count.id, product_id=product_id,
+                        counted_quantity=counted,
+                    )
                 post_inventory_count(session, count_id=count.id)
             self.refresh_products()
-            QMessageBox.information(self, "الجرد", "تم اعتماد فرق الجرد وتسجيل حركة التسوية")
+            QMessageBox.information(self, "الجرد", "تم ترحيل الجرد وتسجيل فروق المخزون")
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر ترحيل الجرد", str(exc))
 
