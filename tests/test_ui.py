@@ -115,3 +115,20 @@ def test_pos_payment_dialog_supports_partial_tender(qapp):
     assert dialog.change_amount == Decimal("0.00")
     assert dialog.remaining.text() == "60.00"
     dialog.close()
+
+
+
+def test_pos_payment_dialog_splits_tender_between_two_methods(qapp):
+    dialog = pos_dialog.POSPaymentDialog(Decimal("100.00"))
+    dialog.received.setText("70.00")
+    dialog.secondary_method.setCurrentIndex(dialog.secondary_method.findData("card"))
+    dialog.secondary_amount.setText("20.00")
+    dialog._validate()
+    assert dialog.paid_amount == Decimal("70.00")
+    assert dialog.payment_method == "mixed"
+    assert dialog.payment_lines == [
+        ("cash", Decimal("50.00")),
+        ("card", Decimal("20.00")),
+    ]
+    assert dialog.remaining.text() == "30.00"
+    dialog.close()
