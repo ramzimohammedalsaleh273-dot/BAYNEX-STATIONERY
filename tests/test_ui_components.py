@@ -1,11 +1,13 @@
 """Tests for reusable BAYNEX Qt presentation components."""
 
 import os
+from datetime import datetime
+from types import SimpleNamespace
 
 from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget
 
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
-from baynex_stationery.ui.main_window import ProductDialog
+from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
 
 
 _APP = None
@@ -54,3 +56,21 @@ def test_product_dialog_groups_related_fields_without_losing_them():
     assert set(dialog.fields) == {
         "sku", "name", "barcode", "sale", "cost", "stock", "minimum", "notes"
     }
+
+
+
+def test_inventory_movements_dialog_renders_real_movement_rows():
+    _application()
+    movement = SimpleNamespace(
+        created_at=datetime(2026, 11, 11, 14, 30),
+        movement_type="receipt",
+        quantity_delta=5,
+        note="إدخال اختبار",
+    )
+    dialog = InventoryMovementsDialog([movement])
+
+    assert dialog.table.rowCount() == 1
+    assert dialog.table.columnCount() == 4
+    assert dialog.table.item(0, 1).text() == "إدخال"
+    assert dialog.table.item(0, 2).text() == "+5"
+    assert dialog.table.item(0, 3).text() == "إدخال اختبار"
