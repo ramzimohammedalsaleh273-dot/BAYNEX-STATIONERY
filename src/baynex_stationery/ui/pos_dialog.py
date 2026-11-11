@@ -637,6 +637,7 @@ class POSDialog(QDialog):
             QMessageBox.warning(self, "تعذر تعليق الفاتورة", str(exc))
 
     def new_ticket_after_hold(self):
+        self.price_type.setCurrentIndex(0)
         self.customer.clear()
         self.customer_phone.clear()
         self.invoice_note.clear()
@@ -863,7 +864,12 @@ class POSDialog(QDialog):
             ))
         table.setRowCount(len(events))
         for row, event in enumerate(events):
-            values = [event.created_at.strftime("%Y-%m-%d %H:%M"), event.action,
+            action_names = {
+                "sale_posted": "ترحيل بيع", "sale_held": "تعليق فاتورة",
+                "sale_return": "مرتجع مبيعات",
+            }
+            values = [event.created_at.strftime("%Y-%m-%d %H:%M"),
+                      action_names.get(event.action, event.action),
                       event.reference_number, f"{event.amount:,.2f}", event.details or ""]
             for col, value in enumerate(values):
                 table.setItem(row, col, QTableWidgetItem(str(value)))
