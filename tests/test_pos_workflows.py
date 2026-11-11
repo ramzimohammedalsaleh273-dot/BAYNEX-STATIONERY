@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Payment, Product
-from baynex_stationery.services.inventory import ensure_default_warehouse, get_stock_balance, record_stock_movement
+from baynex_stationery.services.inventory import (
+    ensure_default_warehouse,
+    get_stock_balance,
+    record_stock_movement,
+)
 from baynex_stationery.services.pos_workflows import create_sale_return, list_held_sales
 from baynex_stationery.services.sales import create_sale, post_sale
 
@@ -24,8 +28,8 @@ def stocked_sale(session, quantity="5"):
     warehouse = ensure_default_warehouse(session)
     product = Product(
         sku="RET-001", name="دفتر مرتجع", unit="قطعة",
-        cost_price=Decimal("2"), sale_price=Decimal("5"),
-        stock_quantity=Decimal(quantity), minimum_stock=Decimal("0"),
+        cost_price=Decimal(2), sale_price=Decimal(5),
+        stock_quantity=Decimal(quantity), minimum_stock=Decimal(0),
     )
     session.add(product)
     session.flush()
@@ -46,7 +50,7 @@ def stocked_sale(session, quantity="5"):
 def test_list_held_sales_returns_only_persisted_held_documents(session):
     warehouse = ensure_default_warehouse(session)
     product = Product(sku="HOLD-01", name="قلم", unit="قطعة",
-                      cost_price=Decimal("1"), sale_price=Decimal("3"))
+                      cost_price=Decimal(1), sale_price=Decimal(3))
     session.add(product)
     session.flush()
     sale = create_sale(
@@ -92,13 +96,13 @@ def test_return_cannot_refund_more_than_collected_amount(session):
     warehouse = ensure_default_warehouse(session)
     product = Product(
         sku="CREDIT-01", name="دفتر آجل", unit="قطعة",
-        cost_price=Decimal("2"), sale_price=Decimal("5"),
+        cost_price=Decimal(2), sale_price=Decimal(5),
     )
     session.add(product)
     session.flush()
     record_stock_movement(
         session, product_id=product.id, warehouse_id=warehouse.id,
-        quantity_delta=Decimal("2"), movement_type="opening",
+        quantity_delta=Decimal(2), movement_type="opening",
         reference_type="test", reference_id=product.id,
     )
     sale = create_sale(
