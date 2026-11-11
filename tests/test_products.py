@@ -83,3 +83,29 @@ def test_create_product_rejects_excess_stock_precision(session):
             opening_stock=Decimal("1.0001"),
         )
 
+
+
+
+def test_create_product_stores_optional_wholesale_price(session):
+    product = create_product(
+        session, sku="WHOLE-001", name="دفتر جملة",
+        sale_price=Decimal("10.00"), wholesale_price=Decimal("8.50"),
+    )
+    assert product.sale_price == Decimal("10.00")
+    assert product.wholesale_price == Decimal("8.50")
+
+
+def test_create_product_allows_no_wholesale_price(session):
+    product = create_product(
+        session, sku="RETAIL-001", name="قلم تجزئة",
+        sale_price=Decimal("4.00"),
+    )
+    assert product.wholesale_price is None
+
+
+def test_create_product_rejects_invalid_wholesale_price(session):
+    with pytest.raises(ValueError, match="سعر الجملة"):
+        create_product(
+            session, sku="WHOLE-BAD", name="صنف",
+            sale_price=Decimal("4.00"), wholesale_price=Decimal("-1.00"),
+        )
