@@ -74,6 +74,35 @@ def create_warehouse(session: Session, *, code: str, name: str, is_default: bool
     return warehouse
 
 
+def update_warehouse(
+    session: Session, warehouse_id: int, *, code: str | None = None,
+    name: str | None = None, is_default: bool | None = None,
+) -> Warehouse:
+    warehouse = session.get(Warehouse, warehouse_id)
+    if warehouse is None:
+        raise ValueError("المستودع غير موجود")
+    if code is not None:
+        clean_code = code.strip().upper()
+        if not clean_code or len(clean_code) > 32:
+            raise ValueError("رمز المستودع مطلوب ولا يتجاوز 32 حرفاً")
+        warehouse.code = clean_code
+    if name is not None:
+        clean_name = name.strip()
+        if not clean_name or len(clean_name) > 120:
+            raise ValueError("اسم المستودع مطلوب ولا يتجاوز 120 حرفاً")
+        warehouse.name = clean_name
+    if is_default is True:
+        for current in session.scalars(
+            select(Warehouse).where(Warehouse.is_default.is_(True), Warehouse.id != warehouse_id)
+        ):
+            current.is_default = False
+        warehouse.is_default = True
+    elif is_default is False and warehouse.is_default:
+        raise ValueError("عيّن مستودعاً افتراضياً آخر قبل إلغاء الافتراضي الحالي")
+    session.flush()
+    return warehouse
+
+
 def list_warehouses(session: Session, *, include_inactive: bool = False) -> list[Warehouse]:
     statement = select(Warehouse).order_by(Warehouse.is_default.desc(), Warehouse.name.asc())
     if not include_inactive:
