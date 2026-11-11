@@ -479,6 +479,7 @@ class MainWindow(QMainWindow):
                     number=f"CO-{datetime.now().strftime('%Y%m%d%H%M%S%f')}",
                     warehouse_id=warehouse_id,
                     note="جرد شامل من شاشة المخزون",
+                    snapshot=[(product.id, balance) for product, balance in balances],
                 )
                 for product_id, counted in counted_values:
                     set_inventory_count_line(
