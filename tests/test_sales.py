@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
-from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
+from baynex_stationery.services.inventory import (
+    create_warehouse,
+    ensure_default_warehouse,
+    record_stock_movement,
+)
 from baynex_stationery.services.sales import post_sale
 
 
@@ -67,3 +71,28 @@ def test_sale_rejects_insufficient_stock_without_creating_sale(session):
 def test_sale_rejects_empty_lines(session):
     with pytest.raises(ValueError, match="صنف واحد"):
         post_sale(session, number="INV-003", items=[])
+
+
+
+def test_sale_uses_selected_warehouse_balance_only(session):
+    product = make_product(session, stock="0")
+    main = ensure_default_warehouse(session)
+    branch = create_warehouse(session, code="SALE-BR", name="مستودع البيع")
+    record_stock_movement(
+        session, product_id=product.id, warehouse_id=branch.id,
+        quantity_delta=Decimal("5"), movement_type="opening",
+        reference_type="test", reference_id=product.id,
+    )
+    with pytest.raises(ValueError, match="الرصيد غير كافٍ"):
+        post_sale(
+            session, number="INV-BR-FAIL",
+            items=[{"product_id": product.id, "quantity": "1"}],
+            warehouse_id=main.id,
+        )
+    sale = post_sale(
+        session, number="INV-BR-OK",
+        items=[{"product_id": product.id, "quantity": "2"}],
+        warehouse_id=branch.id,
+    )
+    assert sale.warehouse_id == branch.id
+    assert product.stock_quantity == Decimal("3.000")
