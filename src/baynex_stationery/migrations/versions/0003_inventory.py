@@ -51,6 +51,7 @@ def upgrade() -> None:
         .bindparams(warehouse_id=default_id)
     )
     with op.batch_alter_table("sales", recreate="always") as batch:
+        batch.alter_column("warehouse_id", existing_type=sa.Integer(), nullable=False)
         batch.create_foreign_key(
             "fk_sales_warehouse_id_warehouses",
             "warehouses", ["warehouse_id"], ["id"], ondelete="RESTRICT",
