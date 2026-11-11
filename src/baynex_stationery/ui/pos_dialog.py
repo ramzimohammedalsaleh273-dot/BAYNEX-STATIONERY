@@ -60,13 +60,15 @@ class POSPaymentDialog(QDialog):
         self.received = QLineEdit(f"{total:.2f}")
         self.due = QLabel(f"{total:,.2f}")
         self.change = QLabel("0.00")
+        self.remaining = QLabel("0.00")
         self.due.setObjectName("posGrandTotal")
         self.change.setObjectName("posChange")
         form = QFormLayout()
-        form.addRow("المبلغ المستحق:", self.due)
-        form.addRow("طريقة الدفع:", self.method)
+        form.addRow("إجمالي الفاتورة:", self.due)
+        form.addRow("طريقة التحصيل:", self.method)
         form.addRow("المبلغ المستلم:", self.received)
         form.addRow("الباقي للعميل:", self.change)
+        form.addRow("المتبقي على العميل:", self.remaining)
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -95,17 +97,17 @@ class POSPaymentDialog(QDialog):
         try:
             amount = decimal_input(self.received.text() or "0", "المبلغ المستلم")
             self.change.setText(f"{max(Decimal(0), amount - self.total):,.2f}")
+            self.remaining.setText(f"{max(Decimal(0), self.total - amount):,.2f}")
         except ValueError:
             self.change.setText("—")
+            self.remaining.setText("—")
 
     def _validate(self):
         try:
             amount = Decimal("0.00") if self.method.currentData() == "credit" else decimal_input(
                 self.received.text(), "المبلغ المستلم"
             )
-            if self.method.currentData() != "credit" and amount < self.total:
-                raise ValueError("المبلغ المستلم أقل من المبلغ المستحق")
-            self.paid_amount = self.total if self.method.currentData() != "credit" else Decimal("0.00")
+            self.paid_amount = min(self.total, amount)
             self.payment_method = self.method.currentData()
             self.change_amount = max(Decimal("0.00"), amount - self.total)
             self.accept()
