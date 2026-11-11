@@ -6,12 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, Warehouse
+from baynex_stationery.domain.pricing import invoice_total, line_total, money
 from baynex_stationery.services.inventory import (
     ensure_default_warehouse,
     get_stock_balance,
     record_stock_movement,
 )
-from baynex_stationery.domain.pricing import invoice_total, line_total, money
 
 
 def post_sale(
