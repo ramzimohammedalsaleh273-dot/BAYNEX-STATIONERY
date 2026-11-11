@@ -32,7 +32,13 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
-from baynex_stationery.db.models import CashierEvent, Payment, Sale
+from baynex_stationery.db.models import (
+    CashierEvent,
+    Payment,
+    Sale,
+    SaleReturn,
+    SaleReturnItem,
+)
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import (
     ensure_default_warehouse,
@@ -872,7 +878,6 @@ class POSDialog(QDialog):
                     raise ValueError("فاتورة البيع لم تعد موجودة")
             lines = []
             with SessionLocal() as session:
-                from baynex_stationery.db.models import SaleReturnItem, SaleReturn
                 returned_rows = session.execute(
                     select(SaleReturnItem.sale_item_id, SaleReturnItem.quantity)
                     .join(SaleReturn, SaleReturn.id == SaleReturnItem.sale_return_id)
