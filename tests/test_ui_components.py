@@ -99,8 +99,9 @@ def test_main_window_uses_two_compact_toolbars_and_preserves_actions(monkeypatch
     assert len(window.findChildren(QToolBar)) == 2
     assert window.add_button.text() == "جديد"
     assert window.receive_button.text() == "إدخال"
+    assert window.sales_button.text() == "فاتورة مبيعات"
     assert window.table.columnCount() == 8
     assert [action.text() for action in window.menuBar().actions()] == [
-        "ملف", "الأصناف", "المخزون", "مساعدة"
+        "ملف", "الأصناف", "المبيعات", "المخزون", "مساعدة"
     ]
     window.close()

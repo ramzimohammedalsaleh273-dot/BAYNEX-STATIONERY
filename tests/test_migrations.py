@@ -21,7 +21,7 @@ def test_fresh_database_migrates_to_head(tmp_path):
         assert "unit_id" in {column["name"] for column in inspector.get_columns("products")}
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT COUNT(*) FROM units")) >= 7
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0003_inventory"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0004_sales_documents"
             assert connection.scalar(text("SELECT COUNT(*) FROM warehouses WHERE is_default=1")) == 1
     finally:
         engine.dispose()

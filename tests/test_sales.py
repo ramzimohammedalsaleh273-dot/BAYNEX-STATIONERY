@@ -9,9 +9,11 @@ from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockM
 from baynex_stationery.services.inventory import (
     create_warehouse,
     ensure_default_warehouse,
+    get_stock_balance,
     record_stock_movement,
 )
-from baynex_stationery.services.sales import post_sale
+from baynex_stationery.services.products import create_product
+from baynex_stationery.services.sales import create_sale, list_sales, post_sale
 
 
 @pytest.fixture
@@ -99,3 +101,61 @@ def test_sale_uses_selected_warehouse_balance_only(session):
     )
     assert sale.warehouse_id == branch.id
     assert product.stock_quantity == Decimal("3.000")
+
+
+
+
+def test_sale_draft_keeps_unit_quantity_price_and_does_not_touch_stock(session):
+    warehouse = ensure_default_warehouse(session)
+    product = create_product(
+        session, sku="DRAFT-01", name="قلم أزرق",
+        sale_price=Decimal("10.00"), cost_price=Decimal("6.00"),
+    )
+    record_stock_movement(
+        session, product_id=product.id, warehouse_id=warehouse.id,
+        quantity_delta=Decimal(20), movement_type="opening",
+        reference_type="test", reference_id=product.id,
+    )
+    sale = create_sale(
+        session, number="SL-DRAFT-001", warehouse_id=warehouse.id,
+        customer_name="مكتبة النور",
+        lines=[{"product_id": product.id, "quantity": "2.500", "unit_price": "12.00"}],
+    )
+    assert sale.status == "draft"
+    assert sale.items[0].product_name == "قلم أزرق"
+    assert sale.items[0].product_sku == "DRAFT-01"
+    assert sale.items[0].unit_name == "قطعة"
+    assert sale.items[0].quantity == Decimal("2.500")
+    assert sale.items[0].line_total == Decimal("30.00")
+    assert get_stock_balance(session, product.id, warehouse.id) == Decimal("20.000")
+
+
+def test_posted_invoice_records_fractional_quantity_and_payment_once(session):
+    warehouse = ensure_default_warehouse(session)
+    product = make_product(session)
+    sale = create_sale(
+        session, number="SL-NEW-002", warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "1.250", "unit_price": "10.00"}],
+        paid_amount="5.00",
+    )
+    post_sale(session, sale_id=sale.id)
+    assert sale.status == "posted"
+    assert get_stock_balance(session, product.id, warehouse.id) == Decimal("8.750")
+    payments = list(session.scalars(select(Payment).where(Payment.sale_id == sale.id)))
+    assert len(payments) == 1
+    with pytest.raises(ValueError, match="سبق ترحيلها"):
+        post_sale(session, sale_id=sale.id)
+    assert len(list(session.scalars(select(Payment).where(Payment.sale_id == sale.id)))) == 1
+
+
+def test_sales_history_searches_invoice_number_and_customer(session):
+    product = make_product(session)
+    warehouse = ensure_default_warehouse(session)
+    create_sale(
+        session, number="SL-2026-001", warehouse_id=warehouse.id,
+        customer_name="مكتبة النور",
+        lines=[{"product_id": product.id, "quantity": "1"}],
+    )
+    assert len(list_sales(session, search="النور")) == 1
+    assert len(list_sales(session, search="2026-001")) == 1
+    assert list_sales(session, search="غير موجود") == []
