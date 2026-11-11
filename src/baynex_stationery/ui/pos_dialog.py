@@ -166,6 +166,9 @@ class POSDialog(QDialog):
         self.warehouse = QComboBox()
         for warehouse in self.warehouses:
             self.warehouse.addItem(warehouse.name, warehouse.id)
+        self.price_type = QComboBox()
+        self.price_type.addItem("تجزئة", "retail")
+        self.price_type.addItem("جملة", "wholesale")
         self.payment_method = QComboBox()
         for label, value in (("نقدي", "cash"), ("شبكة / بطاقة", "card"),
                              ("تحويل", "transfer"), ("آجل", "credit")):
@@ -178,8 +181,9 @@ class POSDialog(QDialog):
 
         fields = [
             ("رقم الفاتورة", self.invoice_no), ("التاريخ", self.invoice_date),
-            ("المستودع", self.warehouse), ("طريقة الدفع", self.payment_method),
-            ("العميل (اختياري)", self.customer), ("الهاتف (اختياري)", self.customer_phone),
+            ("المستودع", self.warehouse), ("نوع السعر", self.price_type),
+            ("طريقة الدفع", self.payment_method), ("العميل (اختياري)", self.customer),
+            ("الهاتف (اختياري)", self.customer_phone),
         ]
         for index, (caption, widget) in enumerate(fields):
             row, col = divmod(index, 3)
@@ -408,6 +412,11 @@ class POSDialog(QDialog):
             self.cart[product_id]["quantity"] + Decimal("1.000")
             if product_id in self.cart else Decimal("1.000")
         )
+        selected_price = (
+            product.wholesale_price
+            if self.price_type.currentData() == "wholesale" and product.wholesale_price is not None
+            else product.sale_price
+        )
         warehouse_id = self.warehouse.currentData()
         try:
             with SessionLocal() as session:
@@ -438,12 +447,13 @@ class POSDialog(QDialog):
         else:
             self.cart[product_id] = {
                 "product": product, "quantity": requested_quantity,
-                "unit_price": product.sale_price, "discount": Decimal("0.00"),
+                "unit_price": selected_price, "discount": Decimal("0.00"),
             }
         self.render_cart()
 
     def render_cart(self):
         """Render committed invoice lines plus ready-to-type blank rows."""
+        self.price_type.setEnabled(not bool(self.cart))
         self.cart_table.blockSignals(True)
         visible_rows = max(12, len(self.cart) + 5)
         self.cart_table.setRowCount(visible_rows)
@@ -574,6 +584,7 @@ class POSDialog(QDialog):
         ) != QMessageBox.StandardButton.Yes:
             return
         self.cart.clear()
+        self.price_type.setCurrentIndex(0)
         self.customer.clear()
         self.customer_phone.clear()
         self.invoice_note.clear()
