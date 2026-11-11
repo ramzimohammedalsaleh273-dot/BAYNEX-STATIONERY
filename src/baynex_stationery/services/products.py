@@ -101,7 +101,10 @@ def create_product(
     session.add(product)
     session.flush()
     if opening_stock:
-        from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
+        from baynex_stationery.services.inventory import (
+            ensure_default_warehouse,
+            record_stock_movement,
+        )
 
         warehouse = (
             session.get(Warehouse, opening_warehouse_id)
