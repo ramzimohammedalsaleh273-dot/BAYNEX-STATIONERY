@@ -9,9 +9,21 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QDialogButtonBox, QFormLayout, QGroupBox, QHBoxLayout,
-    QLabel, QLineEdit, QMessageBox, QPushButton, QSplitter, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
 )
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -68,7 +80,7 @@ class POSPaymentDialog(QDialog):
     def _update_change(self):
         try:
             amount = decimal_input(self.received.text() or "0", "المبلغ المستلم")
-            self.change.setText(f"{max(Decimal('0'), amount - self.total):.2f}")
+            self.change.setText(f"{max(Decimal(0), amount - self.total):.2f}")
         except ValueError:
             self.change.setText("—")
 
