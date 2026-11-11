@@ -114,7 +114,7 @@ def test_sale_draft_keeps_unit_quantity_price_and_does_not_touch_stock(session):
     )
     record_stock_movement(
         session, product_id=product.id, warehouse_id=warehouse.id,
-        quantity_delta=Decimal("20"), movement_type="opening",
+        quantity_delta=Decimal(20), movement_type="opening",
         reference_type="test", reference_id=product.id,
     )
     sale = create_sale(
