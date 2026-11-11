@@ -111,8 +111,7 @@ class POSPaymentDialog(QDialog):
         try:
             amount = decimal_input(self.received.text() or "0", "المبلغ المستلم")
             second = decimal_input(self.secondary_amount.text() or "0", "مبلغ وسيلة التحصيل الثانية")
-            paid = min(self.total, amount)
-            if second > paid:
+            if second > min(self.total, amount):
                 raise ValueError("مبلغ وسيلة التحصيل الثانية أكبر من إجمالي المبلغ المحصل")
             self.change.setText(f"{max(Decimal(0), amount - self.total):,.2f}")
             self.remaining.setText(f"{max(Decimal(0), self.total - amount):,.2f}")
