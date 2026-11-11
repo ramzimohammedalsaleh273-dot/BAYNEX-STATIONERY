@@ -1,7 +1,7 @@
 """Point-of-sale calculations shared by the cashier UI and tests."""
 from __future__ import annotations
 
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 CENT = Decimal("0.01")
 QTY = Decimal("0.001")
