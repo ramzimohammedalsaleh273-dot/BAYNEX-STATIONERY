@@ -141,7 +141,7 @@ class InventoryCountDialog(QDialog):
         self.resize(760, 560)
         self.table = QTableWidget(len(balances), 3)
         self.table.setHorizontalHeaderLabels(["اسم الصنف", "الرصيد الدفتري", "الكمية الفعلية"])
-        self.table.setAlternatingRowColors(True)
+        configure_data_table(self.table, stretch_last=True, row_height=40)
         self.table.setEditTriggers(QTableWidget.EditTrigger.DoubleClicked | QTableWidget.EditTrigger.EditKeyPressed)
         for row, (product, balance) in enumerate(balances):
             name = QTableWidgetItem(product.name)
