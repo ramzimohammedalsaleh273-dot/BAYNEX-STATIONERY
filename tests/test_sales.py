@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.services.inventory import ensure_default_warehouse, record_stock_movement
 from baynex_stationery.services.sales import post_sale
 
 
@@ -26,6 +27,12 @@ def make_product(session, stock="10"):
     )
     session.add(product)
     session.flush()
+    warehouse = ensure_default_warehouse(session)
+    record_stock_movement(
+        session, product_id=product.id, warehouse_id=warehouse.id,
+        quantity_delta=Decimal(stock), movement_type="opening",
+        reference_type="test", reference_id=product.id,
+    )
     return product
 
 
@@ -41,7 +48,7 @@ def test_post_sale_decrements_stock_and_records_documents(session):
     assert sale.total == Decimal("11.50")
     assert product.stock_quantity == Decimal(8)
     assert len(list(session.scalars(select(SaleItem)))) == 1
-    movement = session.scalar(select(StockMovement))
+    movement = session.scalar(select(StockMovement).where(StockMovement.movement_type == "sale"))
     assert movement.quantity_delta == Decimal("-2.000")
     assert session.scalar(select(Payment)).amount == Decimal("11.50")
 
