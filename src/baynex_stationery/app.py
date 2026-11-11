@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QApplication
 
 from baynex_stationery.db.session import initialize_database
 from baynex_stationery.ui.main_window import MainWindow
+from baynex_stationery.ui.theme import apply_theme
 
 
 def run() -> int:
@@ -13,6 +14,7 @@ def run() -> int:
     app = QApplication(sys.argv)
     app.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
     app.setApplicationName("BAYNEX STATIONERY")
+    apply_theme(app)
     window = MainWindow()
     window.show()
     return app.exec()
