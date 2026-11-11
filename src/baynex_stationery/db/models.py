@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    event,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -184,3 +185,14 @@ class InventoryTransferLine(Base):
     product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
     transfer: Mapped[InventoryTransfer] = relationship(back_populates="lines")
+
+
+
+@event.listens_for(StockMovement, "before_update")
+def _prevent_stock_movement_update(_mapper, _connection, _target) -> None:
+    raise ValueError("حركة المخزون المرحلة غير قابلة للتعديل؛ سجّل حركة عكسية أو تسوية جديدة")
+
+
+@event.listens_for(StockMovement, "before_delete")
+def _prevent_stock_movement_delete(_mapper, _connection, _target) -> None:
+    raise ValueError("حركة المخزون المرحلة غير قابلة للحذف")
