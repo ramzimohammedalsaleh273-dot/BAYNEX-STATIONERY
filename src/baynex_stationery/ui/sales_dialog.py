@@ -4,9 +4,9 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QDateTime, Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
+    QComboBox, QDateTimeEdit, QDialog, QFormLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit,
     QMessageBox, QPushButton, QTableWidget, QTableWidgetItem, QVBoxLayout,
 )
 from sqlalchemy.exc import SQLAlchemyError
@@ -43,6 +43,9 @@ class SalesInvoiceDialog(QDialog):
         header = QGroupBox("بيانات الفاتورة والعميل")
         form = QFormLayout(header)
         self.number = QLineEdit(f"SL-{datetime.now().strftime('%Y%m%d-%H%M%S')}")
+        self.invoice_date = QDateTimeEdit(QDateTime.currentDateTime())
+        self.invoice_date.setDisplayFormat("yyyy/MM/dd HH:mm")
+        self.invoice_date.setCalendarPopup(True)
         self.customer = QLineEdit("عميل نقدي")
         self.phone = QLineEdit()
         self.warehouse = QComboBox()
@@ -54,6 +57,7 @@ class SalesInvoiceDialog(QDialog):
         self.paid = QLineEdit("0.00")
         self.invoice_discount = QLineEdit("0.00")
         form.addRow("رقم الفاتورة:", self.number)
+        form.addRow("تاريخ الفاتورة:", self.invoice_date)
         form.addRow("اسم العميل:", self.customer)
         form.addRow("رقم الهاتف:", self.phone)
         form.addRow("المستودع:", self.warehouse)
@@ -269,6 +273,7 @@ class SalesInvoiceDialog(QDialog):
                     payment_method=self.payment.currentData(),
                     paid_amount=self.paid.text(),
                     discount=self.invoice_discount.text(),
+                    invoice_date=self.invoice_date.dateTime().toPython(),
                 )
                 post_sale(session, sale_id=sale.id)
                 number = sale.number
