@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.services.products import create_product
+from baynex_stationery.services.sales import create_sale, list_sales
 from baynex_stationery.services.inventory import (
     create_warehouse,
     ensure_default_warehouse,
@@ -102,8 +104,6 @@ def test_sale_uses_selected_warehouse_balance_only(session):
     assert product.stock_quantity == Decimal("3.000")
 
 
-from baynex_stationery.services.products import create_product
-from baynex_stationery.services.sales import create_sale, list_sales
 
 
 def test_sale_draft_keeps_unit_quantity_price_and_does_not_touch_stock(session):
