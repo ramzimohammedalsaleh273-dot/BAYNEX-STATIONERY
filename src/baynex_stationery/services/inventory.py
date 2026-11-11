@@ -232,7 +232,8 @@ def issue_stock(
 
 
 def create_inventory_count(
-    session: Session, *, number: str, warehouse_id: int, note: str | None = None
+    session: Session, *, number: str, warehouse_id: int, note: str | None = None,
+    snapshot: list[tuple[int, Decimal]] | None = None,
 ) -> InventoryCount:
     if not number.strip():
         raise ValueError("رقم الجرد مطلوب")
@@ -242,9 +243,23 @@ def create_inventory_count(
     count = InventoryCount(number=number.strip(), warehouse_id=warehouse_id, note=note)
     session.add(count)
     session.flush()
-    products = session.scalars(select(Product).where(Product.is_active.is_(True)).order_by(Product.id))
+    products = list(session.scalars(
+        select(Product).where(Product.is_active.is_(True)).order_by(Product.id)
+    ))
+    if snapshot is None:
+        snapshot_values = {
+            product.id: get_stock_balance(session, product.id, warehouse_id)
+            for product in products
+        }
+    else:
+        snapshot_values = {int(product_id): Decimal(str(quantity)) for product_id, quantity in snapshot}
+        if len(snapshot_values) != len(snapshot) or set(snapshot_values) != {p.id for p in products}:
+            raise ValueError("لقطة الجرد لا تطابق قائمة الأصناف النشطة")
+        for quantity in snapshot_values.values():
+            if not quantity.is_finite() or quantity != quantity.quantize(Decimal("0.001")):
+                raise ValueError("تحتوي لقطة الجرد على رصيد غير صالح")
     for product in products:
-        book = get_stock_balance(session, product.id, warehouse_id)
+        book = snapshot_values[product.id]
         session.add(InventoryCountLine(
             count_id=count.id, product_id=product.id,
             book_quantity=book, counted_quantity=book, difference=ZERO,
