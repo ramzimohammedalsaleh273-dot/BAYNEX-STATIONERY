@@ -136,10 +136,15 @@ class POSDialog(QDialog):
         toolbar = QHBoxLayout()
         toolbar.setSpacing(4)
         self.new_button = QPushButton("فاتورة جديدة")
+        self.hold_button = QPushButton("تعليق")
+        self.restore_button = QPushButton("استرجاع")
+        self.print_button = QPushButton("طباعة")
         self.refresh_button = QPushButton("تحديث الأصناف")
         for button in (self.new_button, self.refresh_button):
             button.setMinimumHeight(30)
             toolbar.addWidget(button)
+        for button in (self.hold_button, self.restore_button, self.print_button):
+            button.setMinimumHeight(30)
         toolbar.addStretch(1)
         toolbar.addWidget(QLabel("BAYNEX  |  إدارة المبيعات"))
         root.addLayout(toolbar)
