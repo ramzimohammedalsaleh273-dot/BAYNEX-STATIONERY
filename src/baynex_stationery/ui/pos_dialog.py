@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
     QDialogButtonBox,
+    QFormLayout,
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
