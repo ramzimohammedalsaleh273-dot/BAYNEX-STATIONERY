@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QAbstractItemView,
     QComboBox,
+    QCompleter,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -129,6 +130,10 @@ class POSDialog(QDialog):
             ensure_default_warehouse(session)
             self.products = list_products(session)
             self.warehouses = list_warehouses(session)
+            customer_names = list(session.scalars(
+                select(Sale.customer_name).where(Sale.customer_name.is_not(None)).distinct()
+                .order_by(Sale.customer_name.asc())
+            ))
         self.product_by_id = {p.id: p for p in self.products}
         self.product_by_code = {
             code: p for p in self.products for code in (p.sku, p.barcode) if code
@@ -177,6 +182,10 @@ class POSDialog(QDialog):
         self.customer = QLineEdit()
         self.customer.setPlaceholderText("اختياري — اتركه فارغاً للعميل النقدي")
         self.customer.setMinimumWidth(190)
+        customer_completer = QCompleter(customer_names, self)
+        customer_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+        customer_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+        self.customer.setCompleter(customer_completer)
         self.customer_phone = QLineEdit()
         self.customer_phone.setPlaceholderText("اختياري")
 
@@ -482,9 +491,9 @@ class POSDialog(QDialog):
                 cell.setText(value)
                 if column == 1:
                     cell.setData(Qt.ItemDataRole.UserRole, product_id)
-                if column in (5, 7):
+                if column == 5:
                     cell.setFlags(cell.flags() | Qt.ItemFlag.ItemIsEditable)
-                if column not in (5, 7):
+                if column != 5:
                     cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
         self.cart_table.blockSignals(False)
@@ -511,7 +520,7 @@ class POSDialog(QDialog):
             self.status_label.setText(f"تمت إضافة: {product.name} — أدخل الصنف التالي")
             return
 
-        if item.column() not in (5, 7):
+        if item.column() != 5:
             return
         key_item = self.cart_table.item(item.row(), 1)
         product_id = key_item.data(Qt.ItemDataRole.UserRole) if key_item else None
@@ -545,7 +554,7 @@ class POSDialog(QDialog):
                         f"{projected:.3f}، عند حد إعادة الطلب ({product.minimum_stock:.3f}) أو أقل.",
                     )
             self.cart[product_id].update(
-                {key: calc[key] for key in ("quantity", "unit_price", "discount")}
+                {key: calc[key] for key in ("quantity", "unit_price")}
             )
             self.render_cart()
             self.cart_table.setCurrentCell(item.row(), item.column())
@@ -580,10 +589,20 @@ class POSDialog(QDialog):
         self.render_cart()
 
     def new_ticket(self):
-        if self.cart and QMessageBox.question(
-            self, "فاتورة جديدة", "هل تريد تفريغ الفاتورة الحالية؟"
-        ) != QMessageBox.StandardButton.Yes:
-            return
+        if self.cart:
+            answer = QMessageBox.question(
+                self, "فاتورة جديدة",
+                "هل تريد تعليق الفاتورة الحالية وحفظها قبل بدء فاتورة جديدة؟\\n"
+                "اختر لا للتخلص منها نهائياً، أو إلغاء للعودة إليها.",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No |
+                QMessageBox.StandardButton.Cancel,
+                QMessageBox.StandardButton.Yes,
+            )
+            if answer == QMessageBox.StandardButton.Cancel:
+                return
+            if answer == QMessageBox.StandardButton.Yes:
+                self.hold_ticket()
+                return
         self.cart.clear()
         self.price_type.setCurrentIndex(0)
         self.customer.clear()
@@ -885,6 +904,27 @@ class POSDialog(QDialog):
         close.clicked.connect(dialog.accept)
         layout.addWidget(close)
         dialog.exec()
+
+    def closeEvent(self, event):
+        if not self.cart:
+            event.accept()
+            return
+        answer = QMessageBox.question(
+            self, "إغلاق نقطة البيع",
+            "توجد فاتورة غير مكتملة. هل تريد حفظها كفاتورة معلقة قبل الإغلاق؟",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No |
+            QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer == QMessageBox.StandardButton.Cancel:
+            event.ignore()
+            return
+        if answer == QMessageBox.StandardButton.Yes:
+            self.hold_ticket()
+            if self.cart:
+                event.ignore()
+                return
+        event.accept()
 
     def print_receipt(self):
         receipt = getattr(self, "last_receipt", None)
