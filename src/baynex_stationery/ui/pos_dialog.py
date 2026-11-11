@@ -125,7 +125,6 @@ class POSDialog(QDialog):
         self.resize(1360, 820)
         self.setMinimumSize(1000, 650)
         self.cart: dict[int, dict] = {}
-        self.held_tickets: list[dict] = []  # legacy in-memory compatibility; held invoices are persisted below
         with SessionLocal.begin() as session:
             ensure_default_warehouse(session)
             self.products = list_products(session)
@@ -687,7 +686,12 @@ class POSDialog(QDialog):
                 # Archive the held snapshot and issue a unique working invoice number.
                 # The original number remains traceable in the held record and return history.
                 sale.status = "cancelled"
-                payload["number"] = f"{payload['number'][:30]}-R{selected_id}"
+                log_cashier_event(
+                    session, action="sale_restored", reference_type="sale",
+                    reference_id=sale.id, reference_number=sale.number,
+                    amount=sale.total, details="استرجاع فاتورة معلقة إلى شاشة البيع",
+                )
+                payload["number"] = f"{payload['number'][:25]}-R{selected_id}"
             self.reload_products()
             restored = {}
             for product_id, quantity, price, discount in payload["lines"]:
@@ -868,7 +872,7 @@ class POSDialog(QDialog):
         for row, event in enumerate(events):
             action_names = {
                 "sale_posted": "ترحيل بيع", "sale_held": "تعليق فاتورة",
-                "sale_return": "مرتجع مبيعات",
+                "sale_return": "مرتجع مبيعات", "sale_restored": "استرجاع فاتورة",
             }
             values = [event.created_at.strftime("%Y-%m-%d %H:%M"),
                       action_names.get(event.action, event.action),
