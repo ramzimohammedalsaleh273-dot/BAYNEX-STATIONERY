@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -149,7 +148,6 @@ class POSDialog(QDialog):
         toolbar.addWidget(QLabel("BAYNEX  |  إدارة المبيعات"))
         root.addLayout(toolbar)
 
-        self.tabs = QTabWidget()
         main_tab = QWidget()
         main_grid = QGridLayout(main_tab)
         main_grid.setContentsMargins(8, 8, 8, 8)
@@ -185,13 +183,11 @@ class POSDialog(QDialog):
             main_grid.addWidget(widget, row * 2, col * 2)
         for col in range(6):
             main_grid.setColumnStretch(col, 1 if col % 2 == 0 else 0)
-        self.tabs.addTab(main_tab, "البيانات الرئيسية")
-
         self.invoice_note = QLineEdit()
         self.invoice_note.setPlaceholderText("ملاحظات الفاتورة (اختياري)...")
         main_grid.addWidget(QLabel("ملاحظات"), 4, 5)
         main_grid.addWidget(self.invoice_note, 4, 4)
-        root.addWidget(self.tabs)
+        root.addWidget(main_tab)
 
         # Item entry row, followed by the full-width invoice grid.
         entry = QHBoxLayout()
