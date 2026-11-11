@@ -32,7 +32,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import joinedload
 
-from baynex_stationery.db.models import CashierEvent, Sale
+from baynex_stationery.db.models import CashierEvent, Payment, Sale
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import (
     ensure_default_warehouse,
@@ -60,6 +60,11 @@ class POSPaymentDialog(QDialog):
                              ("تحويل", "transfer"), ("آجل", "credit")):
             self.method.addItem(label, value)
         self.received = QLineEdit(f"{total:.2f}")
+        self.secondary_method = QComboBox()
+        self.secondary_method.addItem("بدون وسيلة ثانية", None)
+        for label, value in (("نقدي", "cash"), ("شبكة / بطاقة", "card"), ("تحويل", "transfer")):
+            self.secondary_method.addItem(label, value)
+        self.secondary_amount = QLineEdit("0.00")
         self.due = QLabel(f"{total:,.2f}")
         self.change = QLabel("0.00")
         self.remaining = QLabel("0.00")
@@ -68,7 +73,9 @@ class POSPaymentDialog(QDialog):
         form = QFormLayout()
         form.addRow("إجمالي الفاتورة:", self.due)
         form.addRow("طريقة التحصيل:", self.method)
-        form.addRow("المبلغ المستلم:", self.received)
+        form.addRow("إجمالي المبلغ المستلم:", self.received)
+        form.addRow("وسيلة التحصيل الثانية:", self.secondary_method)
+        form.addRow("المبلغ من الوسيلة الثانية:", self.secondary_amount)
         form.addRow("الباقي للعميل:", self.change)
         form.addRow("المتبقي على العميل:", self.remaining)
         buttons = QDialogButtonBox(
@@ -83,14 +90,19 @@ class POSPaymentDialog(QDialog):
         layout.addLayout(form)
         layout.addWidget(buttons)
         self.received.textChanged.connect(self._update_change)
+        self.secondary_amount.textChanged.connect(self._update_change)
         self.method.currentIndexChanged.connect(self._method_changed)
+        self.secondary_method.currentIndexChanged.connect(self._update_change)
         self._method_changed()
 
     def _method_changed(self):
         is_credit = self.method.currentData() == "credit"
         self.received.setEnabled(not is_credit)
+        self.secondary_method.setEnabled(not is_credit)
+        self.secondary_amount.setEnabled(not is_credit)
         if is_credit:
             self.received.setText("0.00")
+            self.secondary_amount.setText("0.00")
         elif Decimal(self.received.text() or "0") == 0:
             self.received.setText(f"{self.total:.2f}")
         self._update_change()
@@ -98,6 +110,10 @@ class POSPaymentDialog(QDialog):
     def _update_change(self):
         try:
             amount = decimal_input(self.received.text() or "0", "المبلغ المستلم")
+            second = decimal_input(self.secondary_amount.text() or "0", "مبلغ وسيلة التحصيل الثانية")
+            paid = min(self.total, amount)
+            if second > paid:
+                raise ValueError("مبلغ وسيلة التحصيل الثانية أكبر من إجمالي المبلغ المحصل")
             self.change.setText(f"{max(Decimal(0), amount - self.total):,.2f}")
             self.remaining.setText(f"{max(Decimal(0), self.total - amount):,.2f}")
         except ValueError:
@@ -109,8 +125,25 @@ class POSPaymentDialog(QDialog):
             amount = Decimal("0.00") if self.method.currentData() == "credit" else decimal_input(
                 self.received.text(), "المبلغ المستلم"
             )
+            second = Decimal("0.00") if self.method.currentData() == "credit" else decimal_input(
+                self.secondary_amount.text() or "0", "مبلغ وسيلة التحصيل الثانية"
+            )
             self.paid_amount = min(self.total, amount)
-            self.payment_method = self.method.currentData()
+            if second > self.paid_amount:
+                raise ValueError("مبلغ وسيلة التحصيل الثانية أكبر من إجمالي المبلغ المحصل")
+            second_method = self.secondary_method.currentData()
+            if second > 0 and (second_method is None or second_method == self.method.currentData()):
+                raise ValueError("اختر وسيلة ثانية مختلفة عن وسيلة التحصيل الأولى")
+            primary = self.paid_amount - second
+            self.payment_lines = []
+            if primary > 0:
+                self.payment_lines.append((self.method.currentData(), primary))
+            if second > 0:
+                self.payment_lines.append((second_method, second))
+            self.payment_method = (
+                "mixed" if len(self.payment_lines) > 1
+                else self.payment_lines[0][0] if self.payment_lines else "credit"
+            )
             self.change_amount = max(Decimal("0.00"), amount - self.total)
             self.accept()
         except ValueError as exc:
@@ -767,11 +800,15 @@ class POSDialog(QDialog):
                     lines=lines,
                     customer_name=self.customer.text().strip() or "عميل نقدي",
                     customer_phone=self.customer_phone.text().strip() or None,
-                    payment_method=payment.payment_method,
-                    paid_amount=payment.paid_amount,
+                    payment_method=payment.payment_method if payment.payment_method != "mixed" else "cash",
+                    paid_amount=Decimal("0.00"),
                     notes=self.invoice_note.text().strip() or None,
                 )
                 post_sale(session, sale_id=sale.id)
+                sale.paid_amount = payment.paid_amount
+                sale.payment_method = payment.payment_method
+                for method, amount in payment.payment_lines:
+                    session.add(Payment(sale_id=sale.id, amount=amount, method=method))
                 log_cashier_event(
                     session, action="sale_posted", reference_type="sale",
                     reference_id=sale.id, reference_number=sale.number,
