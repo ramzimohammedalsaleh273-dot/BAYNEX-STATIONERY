@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -220,6 +221,8 @@ class POSDialog(QDialog):
         configure_data_table(self.cart_table, row_height=36)
         self.cart_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
         self.cart_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self.cart_table.setEditTriggers(QAbstractItemView.EditTrigger.AllEditTriggers)
+        self.cart_table.setTabKeyNavigation(True)
         self.cart_table.setColumnWidth(0, 42)
         self.cart_table.setColumnWidth(1, 112)
         self.cart_table.setColumnWidth(2, 132)
@@ -323,6 +326,7 @@ class POSDialog(QDialog):
             shortcut.activated.connect(callback)
         self.cart_table.setCurrentCell(0, 1)
         self.cart_table.setFocus()
+        self.cart_table.editItem(self.cart_table.item(0, 1))
 
     def _fill_product_picker(self):
         self.product_picker.clear()
@@ -354,7 +358,9 @@ class POSDialog(QDialog):
             return
         self.add_product(product.id)
         self.barcode.clear()
-        self.barcode.setFocus()
+        self.cart_table.setCurrentCell(len(self.cart), 1)
+        self.cart_table.setFocus()
+        self.cart_table.editItem(self.cart_table.item(len(self.cart), 1))
 
     def add_selected_product(self):
         text = self.product_picker.currentText().strip()
@@ -380,6 +386,7 @@ class POSDialog(QDialog):
         self.add_product(int(product_id))
         self.cart_table.setCurrentCell(len(self.cart), 1)
         self.cart_table.setFocus()
+        self.cart_table.editItem(self.cart_table.item(len(self.cart), 1))
 
     def add_product(self, product_id: int):
         product = self.product_by_id.get(product_id)
@@ -448,6 +455,7 @@ class POSDialog(QDialog):
             next_row = len(self.cart)
             self.cart_table.setCurrentCell(next_row, 1)
             self.cart_table.setFocus()
+            self.cart_table.editItem(self.cart_table.item(next_row, 1))
             self.status_label.setText(f"تمت إضافة: {product.name} — أدخل الصنف التالي")
             return
 
@@ -519,6 +527,7 @@ class POSDialog(QDialog):
         self.render_cart()
         self.cart_table.setCurrentCell(0, 1)
         self.cart_table.setFocus()
+        self.cart_table.editItem(self.cart_table.item(0, 1))
 
     def hold_ticket(self):
         if not self.cart:
@@ -629,6 +638,7 @@ class POSDialog(QDialog):
             self.render_cart()
             self.cart_table.setCurrentCell(0, 1)
             self.cart_table.setFocus()
+            self.cart_table.editItem(self.cart_table.item(0, 1))
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر إتمام البيع", str(exc))
 
