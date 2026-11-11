@@ -250,6 +250,12 @@ def post_inventory_count(session: Session, *, count_id: int) -> InventoryCount:
     lines = list(session.scalars(select(InventoryCountLine).where(
         InventoryCountLine.count_id == count_id
     ).order_by(InventoryCountLine.id)))
+    active_product_ids = set(session.scalars(
+        select(Product.id).where(Product.is_active.is_(True))
+    ))
+    counted_product_ids = {line.product_id for line in lines}
+    if active_product_ids != counted_product_ids:
+        raise ValueError("تغيرت قائمة الأصناف بعد بدء الجرد؛ ألغِ الجلسة وأنشئ جرداً جديداً")
     for line in lines:
         current = get_stock_balance(session, line.product_id, count.warehouse_id)
         if current != line.book_quantity:
