@@ -1,6 +1,6 @@
 """Add customer, payment and unit snapshots to sales invoices."""
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0004_sales_documents"
 down_revision = "0003_inventory"
