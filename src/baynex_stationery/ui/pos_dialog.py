@@ -10,7 +10,6 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
     QComboBox,
-    QCompleter,
     QDialog,
     QDialogButtonBox,
     QFormLayout,
@@ -113,8 +112,8 @@ class POSDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("BAYNEX STATIONERY | فاتورة مبيعات - نقطة البيع")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1440, 900)
-        self.setMinimumSize(1080, 720)
+        self.resize(1360, 820)
+        self.setMinimumSize(1000, 650)
         self.cart: dict[int, dict] = {}
         self.held_tickets: list[dict] = []
         with SessionLocal.begin() as session:
@@ -165,24 +164,20 @@ class POSDialog(QDialog):
             self.payment_method.addItem(label, value)
         self.customer = QLineEdit("عميل نقدي")
         self.customer_phone = QLineEdit()
-        self.customer_address = QLineEdit()
-        self.salesperson = QLineEdit()
-        self.salesperson.setPlaceholderText("اختياري")
         self.customer.setMinimumWidth(190)
 
         fields = [
             ("رقم الفاتورة", self.invoice_no), ("التاريخ", self.invoice_date),
             ("المستودع", self.warehouse), ("طريقة الدفع", self.payment_method),
             ("اسم العميل", self.customer), ("رقم الهاتف", self.customer_phone),
-            ("العنوان", self.customer_address), ("مندوب المبيعات", self.salesperson),
         ]
         for index, (caption, widget) in enumerate(fields):
-            row, col = divmod(index, 4)
+            row, col = divmod(index, 3)
             label = QLabel(caption)
             label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             main_grid.addWidget(label, row * 2, col * 2 + 1)
             main_grid.addWidget(widget, row * 2, col * 2)
-        for col in range(8):
+        for col in range(6):
             main_grid.setColumnStretch(col, 1 if col % 2 == 0 else 0)
         self.tabs.addTab(main_tab, "البيانات الرئيسية")
 
@@ -463,7 +458,6 @@ class POSDialog(QDialog):
         self.cart.clear()
         self.customer.setText("عميل نقدي")
         self.customer_phone.clear()
-        self.customer_address.clear()
         self.invoice_note.clear()
         self.invoice_no.setText(f"POS-{datetime.now():%Y%m%d-%H%M%S}")
         self.invoice_date.setText(datetime.now().strftime("%d/%m/%Y %H:%M"))
@@ -479,7 +473,6 @@ class POSDialog(QDialog):
             "cart": {key: dict(value) for key, value in self.cart.items()},
             "customer": self.customer.text(),
             "phone": self.customer_phone.text(),
-            "address": self.customer_address.text(),
             "warehouse_id": self.warehouse.currentData(),
             "number": self.invoice_no.text(),
             "note": self.invoice_note.text(),
@@ -495,7 +488,6 @@ class POSDialog(QDialog):
     def new_ticket_after_hold(self):
         self.customer.setText("عميل نقدي")
         self.customer_phone.clear()
-        self.customer_address.clear()
         self.invoice_note.clear()
         self.invoice_no.setText(f"POS-{datetime.now():%Y%m%d-%H%M%S}")
         self.invoice_date.setText(datetime.now().strftime("%d/%m/%Y %H:%M"))
@@ -511,7 +503,7 @@ class POSDialog(QDialog):
         if self.cart:
             self.held_tickets.append({
                 "cart": self.cart, "customer": self.customer.text(),
-                "phone": self.customer_phone.text(), "address": self.customer_address.text(),
+                "phone": self.customer_phone.text(),
                 "warehouse_id": self.warehouse.currentData(), "number": self.invoice_no.text(),
                 "note": self.invoice_note.text(),
             })
@@ -519,7 +511,6 @@ class POSDialog(QDialog):
         self.cart = ticket["cart"]
         self.customer.setText(ticket["customer"])
         self.customer_phone.setText(ticket["phone"])
-        self.customer_address.setText(ticket["address"])
         self.invoice_note.setText(ticket["note"])
         self.invoice_no.setText(ticket["number"])
         index = self.warehouse.findData(ticket["warehouse_id"])
