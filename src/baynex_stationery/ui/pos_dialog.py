@@ -422,9 +422,9 @@ class POSDialog(QDialog):
         if requested_quantity > available:
             QMessageBox.warning(
                 self, "تنبيه نقص المخزون",
-                f"الصنف: {product.name}\\n"
-                f"الرصيد المتاح في المستودع: {available:.3f}\\n"
-                f"الكمية المطلوبة في الفاتورة: {requested_quantity:.3f}\\n"
+                f"الصنف: {product.name}\n"
+                f"الرصيد المتاح في المستودع: {available:.3f}\n"
+                f"الكمية المطلوبة في الفاتورة: {requested_quantity:.3f}\n"
                 "لا يمكن ترحيل الفاتورة قبل توفير الكمية المطلوبة.",
             )
         elif projected_balance <= product.minimum_stock:
