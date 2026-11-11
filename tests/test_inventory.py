@@ -158,3 +158,27 @@ def test_quantity_precision_is_limited_to_three_decimal_places(session):
         receive_stock(
             session, product_id=product.id, warehouse_id=main.id, quantity="1.0001"
         )
+
+
+
+def test_posted_stock_movements_are_immutable(session):
+    product = make_product(session)
+    main = ensure_default_warehouse(session)
+    movement = receive_stock(
+        session, product_id=product.id, warehouse_id=main.id, quantity="3"
+    )
+    movement.note = "محاولة تعديل"
+    with pytest.raises(ValueError, match="غير قابلة للتعديل"):
+        session.flush()
+    session.rollback()
+
+
+def test_count_rejects_catalog_changes_after_snapshot(session):
+    first = make_product(session, "P-101")
+    main = ensure_default_warehouse(session)
+    receive_stock(session, product_id=first.id, warehouse_id=main.id, quantity="5")
+    count = create_inventory_count(session, number="CO-003", warehouse_id=main.id)
+    second = make_product(session, "P-102")
+    with pytest.raises(ValueError, match="قائمة الأصناف"):
+        post_inventory_count(session, count_id=count.id)
+    assert get_stock_balance(session, second.id, main.id) == Decimal("0.000")
