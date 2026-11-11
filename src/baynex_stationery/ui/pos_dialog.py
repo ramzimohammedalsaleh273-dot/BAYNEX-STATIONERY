@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtPrintSupport import QPrintDialog, QPrinter
 from PySide6.QtWidgets import (
+    QInputDialog,
     QAbstractItemView,
     QComboBox,
     QDialog,
@@ -26,7 +27,11 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from sqlalchemy.exc import SQLAlchemyError
+
+from baynex_stationery.db.models import Sale
 
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import (
@@ -117,7 +122,7 @@ class POSDialog(QDialog):
         self.resize(1360, 820)
         self.setMinimumSize(1000, 650)
         self.cart: dict[int, dict] = {}
-        self.held_tickets: list[dict] = []
+        self.held_tickets: list[dict] = []  # legacy in-memory compatibility; held invoices are persisted below
         with SessionLocal.begin() as session:
             ensure_default_warehouse(session)
             self.products = list_products(session)
@@ -576,24 +581,39 @@ class POSDialog(QDialog):
         self.cart_table.editItem(self.cart_table.item(0, 1))
 
     def hold_ticket(self):
+        """Persist the current ticket as a draft-like held sale; no stock is posted."""
         if not self.cart:
             QMessageBox.information(self, "تعليق الفاتورة", "لا توجد أصناف لتعليقها.")
             return
-        self.held_tickets.append({
-            "cart": {key: dict(value) for key, value in self.cart.items()},
-            "customer": self.customer.text(),
-            "phone": self.customer_phone.text(),
-            "warehouse_id": self.warehouse.currentData(),
-            "number": self.invoice_no.text(),
-            "note": self.invoice_note.text(),
-        })
-        self.cart.clear()
-        self.new_ticket_after_hold()
-        self.render_cart()
-        QMessageBox.information(
-            self, "تعليق الفاتورة",
-            f"تم تعليق الفاتورة. عدد الفواتير المعلقة: {len(self.held_tickets)}",
-        )
+        try:
+            lines = [{
+                "product_id": product_id, "quantity": line["quantity"],
+                "unit_price": line["unit_price"], "discount": line["discount"],
+            } for product_id, line in self.cart.items()]
+            with SessionLocal.begin() as session:
+                held = create_sale(
+                    session, number=self.invoice_no.text(),
+                    warehouse_id=self.warehouse.currentData(), lines=lines,
+                    customer_name=self.customer.text().strip() or "عميل نقدي",
+                    customer_phone=self.customer_phone.text().strip() or None,
+                    payment_method=self.payment_method.currentData(),
+                    paid_amount=Decimal("0.00"),
+                    notes=self.invoice_note.text().strip() or None,
+                )
+                held.status = "held"
+                session.flush()
+                held_number = held.number
+            self.cart.clear()
+            self.new_ticket_after_hold()
+            self.status_label.setText(f"تم تعليق الفاتورة {held_number}")
+            self.render_cart()
+            QMessageBox.information(
+                self, "تعليق الفاتورة",
+                f"تم حفظ الفاتورة المعلقة رقم {held_number} في قاعدة البيانات. "
+                "ستبقى محفوظة بعد إغلاق البرنامج.",
+            )
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر تعليق الفاتورة", str(exc))
 
     def new_ticket_after_hold(self):
         self.customer.clear()
@@ -603,30 +623,66 @@ class POSDialog(QDialog):
         self.invoice_date.setText(datetime.now().strftime("%d/%m/%Y %H:%M"))
 
     def restore_ticket(self):
-        if not self.held_tickets:
-            QMessageBox.information(self, "استرجاع الفاتورة", "لا توجد فواتير معلقة في جلسة الكاشير الحالية.")
-            return
-        if self.cart and QMessageBox.question(
-            self, "استرجاع", "سيتم تعليق السلة الحالية تلقائياً. متابعة؟"
-        ) != QMessageBox.StandardButton.Yes:
-            return
-        if self.cart:
-            self.held_tickets.append({
-                "cart": self.cart, "customer": self.customer.text(),
-                "phone": self.customer_phone.text(),
-                "warehouse_id": self.warehouse.currentData(), "number": self.invoice_no.text(),
-                "note": self.invoice_note.text(),
-            })
-        ticket = self.held_tickets.pop()
-        self.cart = ticket["cart"]
-        self.customer.setText(ticket["customer"])
-        self.customer_phone.setText(ticket["phone"])
-        self.invoice_note.setText(ticket["note"])
-        self.invoice_no.setText(ticket["number"])
-        index = self.warehouse.findData(ticket["warehouse_id"])
-        if index >= 0:
-            self.warehouse.setCurrentIndex(index)
-        self.render_cart()
+        """Restore a selected held invoice from persistent storage."""
+        try:
+            with SessionLocal() as session:
+                held_sales = list(session.scalars(
+                    select(Sale).options(joinedload(Sale.items))
+                    .where(Sale.status == "held")
+                    .order_by(Sale.created_at.desc(), Sale.id.desc())
+                ).unique())
+                choices = [f"{sale.number} — {sale.customer_name} — {sale.total:.2f}"
+                           for sale in held_sales]
+                if not choices:
+                    QMessageBox.information(self, "استرجاع الفاتورة", "لا توجد فواتير معلقة محفوظة.")
+                    return
+                choice, accepted = QInputDialog.getItem(
+                    self, "استرجاع فاتورة معلقة", "اختر الفاتورة:", choices, 0, False
+                )
+                if not accepted:
+                    return
+                selected = held_sales[choices.index(choice)]
+                selected_id = selected.id
+                payload = {
+                    "number": selected.number, "customer": selected.customer_name or "",
+                    "phone": selected.customer_phone or "", "note": selected.notes or "",
+                    "warehouse_id": selected.warehouse_id,
+                    "lines": [(item.product_id, item.quantity, item.unit_price, item.discount)
+                              for item in selected.items],
+                }
+            if self.cart:
+                if QMessageBox.question(
+                    self, "استرجاع", "سيتم تعليق الفاتورة الحالية أولاً. متابعة؟"
+                ) != QMessageBox.StandardButton.Yes:
+                    return
+                self.hold_ticket()
+            with SessionLocal.begin() as session:
+                sale = session.get(Sale, selected_id)
+                if sale is None or sale.status != "held":
+                    raise ValueError("الفاتورة المعلقة لم تعد متاحة للاسترجاع")
+                sale.status = "draft"
+            self.reload_products()
+            restored = {}
+            for product_id, quantity, price, discount in payload["lines"]:
+                product = self.product_by_id.get(product_id)
+                if product is None:
+                    raise ValueError("أحد أصناف الفاتورة لم يعد متاحاً في دليل الأصناف")
+                restored[product_id] = {
+                    "product": product, "quantity": quantity,
+                    "unit_price": price, "discount": discount,
+                }
+            self.cart = restored
+            self.customer.setText(payload["customer"])
+            self.customer_phone.setText(payload["phone"])
+            self.invoice_note.setText(payload["note"])
+            self.invoice_no.setText(payload["number"])
+            index = self.warehouse.findData(payload["warehouse_id"])
+            if index >= 0:
+                self.warehouse.setCurrentIndex(index)
+            self.status_label.setText(f"تم استرجاع الفاتورة {payload['number']}")
+            self.render_cart()
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر استرجاع الفاتورة", str(exc))
 
     def checkout(self):
         if not self.cart:
