@@ -211,21 +211,32 @@ class POSDialog(QDialog):
         entry.addWidget(self.add_button)
         root.addLayout(entry)
 
-        self.cart_table = QTableWidget(0, 8)
+        root.addWidget(QLabel("تفاصيل الأصناف — اكتب رمز الصنف أو الباركود في أول صف فارغ، ثم اضغط Enter أو انتقل للخلية التالية"))
+        self.cart_table = QTableWidget(12, 9)
+        self.cart_table.setObjectName("posInvoiceGrid")
         self.cart_table.setHorizontalHeaderLabels(
-            ["م", "رقم الصنف", "اسم الصنف", "الوحدة", "الكمية", "السعر", "الخصم", "الإجمالي"]
+            ["م", "رمز الصنف", "الباركود", "اسم الصنف", "الوحدة", "الكمية", "السعر", "الخصم", "الإجمالي"]
         )
-        configure_data_table(self.cart_table, row_height=34)
-        self.cart_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        configure_data_table(self.cart_table, row_height=36)
+        self.cart_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectItems)
         self.cart_table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.cart_table.setColumnWidth(0, 42)
-        self.cart_table.setColumnWidth(1, 110)
-        self.cart_table.setColumnWidth(2, 330)
-        self.cart_table.setColumnWidth(3, 82)
-        self.cart_table.setColumnWidth(4, 95)
-        self.cart_table.setColumnWidth(5, 115)
-        self.cart_table.setColumnWidth(6, 100)
-        self.cart_table.setColumnWidth(7, 135)
+        self.cart_table.setColumnWidth(1, 112)
+        self.cart_table.setColumnWidth(2, 132)
+        self.cart_table.setColumnWidth(3, 300)
+        self.cart_table.setColumnWidth(4, 82)
+        self.cart_table.setColumnWidth(5, 90)
+        self.cart_table.setColumnWidth(6, 105)
+        self.cart_table.setColumnWidth(7, 92)
+        self.cart_table.setColumnWidth(8, 125)
+        self.cart_table.setStyleSheet(
+            "QTableWidget#posInvoiceGrid { background:#FFFFFF; gridline-color:#B8C5CF; }"
+            "QTableWidget#posInvoiceGrid QHeaderView::section {"
+            "background:qlineargradient(x1:0,y1:0,x2:0,y2:1,stop:0 #F7FAFC,stop:1 #D5E0E8);"
+            "color:#183F5A; border:1px solid #AAB9C5; padding:7px; font-weight:700; }"
+            "QTableWidget#posInvoiceGrid::item { padding:5px; border-bottom:1px solid #E0E7EC; }"
+            "QTableWidget#posInvoiceGrid::item:selected { background:#C5E2F4; color:#153D58; }"
+        )
         self.cart_table.itemChanged.connect(self._cart_edited)
         root.addWidget(self.cart_table, 1)
 
@@ -382,33 +393,63 @@ class POSDialog(QDialog):
         self.render_cart()
 
     def render_cart(self):
+        """Render committed invoice lines plus ready-to-type blank rows."""
         self.cart_table.blockSignals(True)
-        self.cart_table.setRowCount(len(self.cart))
+        visible_rows = max(12, len(self.cart) + 5)
+        self.cart_table.setRowCount(visible_rows)
+        for row in range(visible_rows):
+            for column in range(9):
+                cell = QTableWidgetItem("")
+                cell.setTextAlignment(
+                    Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                )
+                if column not in (1, 2):
+                    cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                self.cart_table.setItem(row, column, cell)
+
         for row, (product_id, line) in enumerate(self.cart.items()):
             product = line["product"]
             unit = product.unit_record.symbol if product.unit_record else product.unit
             calc = calculate_line(line["quantity"], line["unit_price"], line["discount"])
             values = [
-                str(row + 1), product.sku, product.name, unit,
+                str(row + 1), product.sku, product.barcode or "", product.name, unit,
                 f'{line["quantity"]:.3f}', f'{line["unit_price"]:.2f}',
                 f'{line["discount"]:.2f}', f'{calc["total"]:.2f}',
             ]
             for column, value in enumerate(values):
-                cell = QTableWidgetItem(value)
-                if column in (0, 1, 2, 3, 7):
-                    cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                cell = self.cart_table.item(row, column)
+                cell.setText(value)
                 if column == 1:
                     cell.setData(Qt.ItemDataRole.UserRole, product_id)
-                if column in (4, 5, 6):
-                    cell.setTextAlignment(
-                        Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
-                    )
-                self.cart_table.setItem(row, column, cell)
+                if column in (5, 6, 7):
+                    cell.setFlags(cell.flags() | Qt.ItemFlag.ItemIsEditable)
+                if column not in (1, 2, 5, 6, 7):
+                    cell.setFlags(cell.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
         self.cart_table.blockSignals(False)
         self.recalculate()
 
     def _cart_edited(self, item):
-        if item.column() not in (4, 5, 6) or item.row() < 0:
+        """Resolve SKU/barcode directly in the grid or validate editable line values."""
+        if item.row() < 0:
+            return
+        if item.column() in (1, 2):
+            code = item.text().strip()
+            if not code:
+                return
+            product = self.product_by_code.get(code)
+            if product is None:
+                self.status_label.setText(f"لم يتم العثور على الصنف ذي الرمز: {code}")
+                item.setToolTip("أدخل رمز صنف أو باركود مسجلاً في دليل الأصناف")
+                return
+            self.add_product(product.id)
+            next_row = len(self.cart)
+            self.cart_table.setCurrentCell(next_row, 1)
+            self.cart_table.setFocus()
+            self.status_label.setText(f"تمت إضافة: {product.name} — أدخل الصنف التالي")
+            return
+
+        if item.column() not in (5, 6, 7):
             return
         key_item = self.cart_table.item(item.row(), 1)
         product_id = key_item.data(Qt.ItemDataRole.UserRole) if key_item else None
@@ -416,16 +457,20 @@ class POSDialog(QDialog):
             return
         try:
             calc = calculate_line(
-                self.cart_table.item(item.row(), 4).text(),
                 self.cart_table.item(item.row(), 5).text(),
                 self.cart_table.item(item.row(), 6).text(),
+                self.cart_table.item(item.row(), 7).text(),
             )
             self.cart[product_id].update(
                 {key: calc[key] for key in ("quantity", "unit_price", "discount")}
             )
             self.render_cart()
+            self.cart_table.setCurrentCell(item.row(), item.column())
         except (ValueError, AttributeError):
-            QMessageBox.warning(self, "تفاصيل الصنف", "تحقق من الكمية والسعر والخصم ثم أعد الإدخال.")
+            QMessageBox.warning(
+                self, "تفاصيل الصنف",
+                "تحقق من الكمية والسعر والخصم ثم أعد الإدخال."
+            )
             self.render_cart()
 
     def recalculate(self):
@@ -455,7 +500,7 @@ class POSDialog(QDialog):
     def edit_quantity(self):
         row = self.cart_table.currentRow()
         if row >= 0:
-            self.cart_table.editItem(self.cart_table.item(row, 4))
+            self.cart_table.editItem(self.cart_table.item(row, 5))
 
     def new_ticket(self):
         if self.cart and QMessageBox.question(
