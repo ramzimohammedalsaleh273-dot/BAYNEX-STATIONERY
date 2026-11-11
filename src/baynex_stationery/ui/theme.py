@@ -16,6 +16,20 @@ QMainWindow, QDialog, QWidget#centralwidget {
 QLabel {
     background: transparent;
 }
+QLabel#pageTitle {
+    color: #173B55;
+    font-size: 21pt;
+    font-weight: 750;
+    padding: 4px 2px 0 2px;
+}
+QLabel#pageSubtitle {
+    color: #65768A;
+    font-size: 9pt;
+    padding: 0 3px 5px 3px;
+}
+QWidget#pageHeading {
+    background: transparent;
+}
 QLineEdit, QComboBox, QDateEdit, QSpinBox, QDoubleSpinBox, QTextEdit, QPlainTextEdit {
     background: #FFFFFF;
     border: 1px solid #C9D4E2;
@@ -119,6 +133,56 @@ QToolTip {
     background: #20384E;
     border: 1px solid #20384E;
     padding: 5px 7px;
+}
+QMenu {
+    color: #243247;
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    padding: 5px;
+}
+QMenu::item {
+    padding: 7px 24px;
+    border-radius: 3px;
+}
+QMenu::item:selected {
+    color: #173B55;
+    background: #DCECF7;
+}
+QTabWidget::pane {
+    background: #FFFFFF;
+    border: 1px solid #CBD5E1;
+    border-radius: 5px;
+    top: -1px;
+}
+QTabBar::tab {
+    color: #52657A;
+    background: #E8EEF4;
+    border: 1px solid #D4DEE8;
+    padding: 9px 16px;
+    margin-left: 3px;
+}
+QTabBar::tab:selected {
+    color: #173B55;
+    background: #FFFFFF;
+    border-bottom: 2px solid #1593A8;
+    font-weight: 700;
+}
+QCheckBox, QRadioButton {
+    spacing: 8px;
+    color: #34465B;
+}
+QCheckBox::indicator, QRadioButton::indicator {
+    width: 17px;
+    height: 17px;
+}
+QToolBar {
+    spacing: 7px;
+    background: transparent;
+    border: 0;
+    padding: 4px 0;
+}
+QDialogButtonBox QPushButton {
+    min-width: 88px;
 }
 """
 
