@@ -38,8 +38,8 @@ from baynex_stationery.services.inventory import (
     ensure_default_warehouse,
     get_stock_balance,
     issue_stock,
-    list_stock_movements,
     list_stock_balances,
+    list_stock_movements,
     list_warehouses,
     post_inventory_count,
     post_inventory_transfer,
@@ -463,7 +463,7 @@ class MainWindow(QMainWindow):
         difference_total = sum(
             (counted - balance for (_product, balance), (_product_id, counted)
              in zip(balances, counted_values, strict=True)),
-            Decimal("0"),
+            Decimal(0),
         )
         answer = QMessageBox.question(
             self, "تأكيد ترحيل الجرد",
