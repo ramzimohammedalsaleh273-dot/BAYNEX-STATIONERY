@@ -97,11 +97,12 @@ def test_pos_grid_locks_catalog_price_and_exposes_cashier_workflows(qapp, isolat
         from PySide6.QtCore import Qt
         assert not (price_flags & Qt.ItemFlag.ItemIsEditable)
         assert quantity_flags & Qt.ItemFlag.ItemIsEditable
-        assert discount_flags & Qt.ItemFlag.ItemIsEditable
-        assert window.hold_button.isVisible() is False or window.hold_button.parent() is not None
+        assert not (discount_flags & Qt.ItemFlag.ItemIsEditable)
+        assert window.hold_button.parent() is not None
         assert window.return_button.text() == "مرتجع مبيعات"
         assert window.history_button.text() == "سجل الكاشير"
     finally:
+        window.cart.clear()
         window.close()
 
 
