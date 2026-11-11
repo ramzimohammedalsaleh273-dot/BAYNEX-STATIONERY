@@ -31,12 +31,15 @@ def make_product(session, stock="10"):
     )
     session.add(product)
     session.flush()
-    warehouse = ensure_default_warehouse(session)
-    record_stock_movement(
-        session, product_id=product.id, warehouse_id=warehouse.id,
-        quantity_delta=Decimal(stock), movement_type="opening",
-        reference_type="test", reference_id=product.id,
-    )
+    if Decimal(stock) > 0:
+        warehouse = ensure_default_warehouse(session)
+        record_stock_movement(
+            session, product_id=product.id, warehouse_id=warehouse.id,
+            quantity_delta=Decimal(stock), movement_type="opening",
+            reference_type="test", reference_id=product.id,
+        )
+    else:
+        ensure_default_warehouse(session)
     return product
 
 
