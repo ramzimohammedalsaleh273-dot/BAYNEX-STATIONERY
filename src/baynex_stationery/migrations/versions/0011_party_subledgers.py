@@ -25,18 +25,23 @@ def upgrade() -> None:
     )
     op.create_index("ix_customers_name", "customers", ["name"])
     op.create_index("ix_customers_phone", "customers", ["phone"])
-    op.add_column(
-        "sales", sa.Column("customer_id", sa.Integer(),
-                           sa.ForeignKey("customers.id", ondelete="RESTRICT")),
-    )
-    op.add_column(
-        "journal_lines", sa.Column("customer_id", sa.Integer(),
-                                   sa.ForeignKey("customers.id", ondelete="RESTRICT")),
-    )
-    op.add_column(
-        "journal_lines", sa.Column("supplier_id", sa.Integer(),
-                                   sa.ForeignKey("suppliers.id", ondelete="RESTRICT")),
-    )
+    with op.batch_alter_table("sales") as batch_op:
+        batch_op.add_column(sa.Column("customer_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_sales_customer_id_customers", "customers",
+            ["customer_id"], ["id"], ondelete="RESTRICT",
+        )
+    with op.batch_alter_table("journal_lines") as batch_op:
+        batch_op.add_column(sa.Column("customer_id", sa.Integer(), nullable=True))
+        batch_op.add_column(sa.Column("supplier_id", sa.Integer(), nullable=True))
+        batch_op.create_foreign_key(
+            "fk_journal_lines_customer_id_customers", "customers",
+            ["customer_id"], ["id"], ondelete="RESTRICT",
+        )
+        batch_op.create_foreign_key(
+            "fk_journal_lines_supplier_id_suppliers", "suppliers",
+            ["supplier_id"], ["id"], ondelete="RESTRICT",
+        )
 
     connection = op.get_bind()
     sales = connection.execute(sa.text(
@@ -88,9 +93,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_column("journal_lines", "supplier_id")
-    op.drop_column("journal_lines", "customer_id")
-    op.drop_column("sales", "customer_id")
+    with op.batch_alter_table("journal_lines") as batch_op:
+        batch_op.drop_constraint("fk_journal_lines_supplier_id_suppliers", type_="foreignkey")
+        batch_op.drop_constraint("fk_journal_lines_customer_id_customers", type_="foreignkey")
+        batch_op.drop_column("supplier_id")
+        batch_op.drop_column("customer_id")
+    with op.batch_alter_table("sales") as batch_op:
+        batch_op.drop_constraint("fk_sales_customer_id_customers", type_="foreignkey")
+        batch_op.drop_column("customer_id")
     op.drop_index("ix_customers_phone", table_name="customers")
     op.drop_index("ix_customers_name", table_name="customers")
     op.drop_table("customers")
