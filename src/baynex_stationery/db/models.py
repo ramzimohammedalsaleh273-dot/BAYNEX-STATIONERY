@@ -118,6 +118,7 @@ class SaleItem(Base):
     tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
     unit_price: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    unit_cost_snapshot: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     line_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
     sale: Mapped[Sale] = relationship(back_populates="items")
 

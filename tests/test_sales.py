@@ -5,7 +5,14 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.db.models import (
+    JournalEntry,
+    Payment,
+    Product,
+    Sale,
+    SaleItem,
+    StockMovement,
+)
 from baynex_stationery.services.inventory import (
     create_warehouse,
     ensure_default_warehouse,
@@ -14,6 +21,7 @@ from baynex_stationery.services.inventory import (
 )
 from baynex_stationery.services.products import create_product
 from baynex_stationery.services.sales import create_sale, list_sales, post_sale
+from baynex_stationery.services.treasury import create_treasury_account
 
 
 @pytest.fixture
@@ -60,6 +68,13 @@ def test_post_sale_decrements_stock_and_records_documents(session):
     movement = session.scalar(select(StockMovement).where(StockMovement.movement_type == "sale"))
     assert movement.quantity_delta == Decimal("-2.000")
     assert session.scalar(select(Payment)).amount == Decimal("11.50")
+    journal = session.scalar(select(JournalEntry).where(JournalEntry.source_type == "sale", JournalEntry.source_id == sale.id))
+    assert journal is not None and journal.status == "posted"
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("15.50")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("15.50")
+    account_names = {line.account.name for line in journal.lines}
+    assert "تكلفة البضاعة المباعة" in account_names
+    assert "مخزون البضاعة" in account_names
 
 
 def test_sale_rejects_insufficient_stock_without_creating_sale(session):
@@ -159,3 +174,24 @@ def test_sales_history_searches_invoice_number_and_customer(session):
     assert len(list_sales(session, search="النور")) == 1
     assert len(list_sales(session, search="2026-001")) == 1
     assert list_sales(session, search="غير موجود") == []
+
+def test_sales_payment_uses_the_only_active_cashbox_ledger(session):
+    product = make_product(session)
+    cashbox = create_treasury_account(
+        session, code="CASH-ONLY", name="الصندوق الوحيد",
+        account_kind="cash", ledger_code="1001",
+    )
+    warehouse = ensure_default_warehouse(session)
+    sale = create_sale(
+        session, number="CASH-LINK-001", warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "1"}],
+        paid_amount="5.00", payment_method="cash",
+    )
+    post_sale(session, sale_id=sale.id)
+    journal = session.scalar(select(JournalEntry).where(
+        JournalEntry.source_type == "sale", JournalEntry.source_id == sale.id,
+    ))
+    assert any(
+        line.account_id == cashbox.ledger_account_id and line.debit == Decimal("5.00")
+        for line in journal.lines
+    )

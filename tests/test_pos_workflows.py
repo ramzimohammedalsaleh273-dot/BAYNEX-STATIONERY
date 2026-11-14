@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Payment, Product
+from baynex_stationery.db.models import JournalEntry, Payment, Product
 from baynex_stationery.services.inventory import (
     ensure_default_warehouse,
     get_stock_balance,
@@ -76,6 +76,10 @@ def test_partial_return_restock_and_refund_payment_are_linked(session):
     refund = session.scalar(select(Payment).where(Payment.sale_id == sale.id, Payment.amount < 0))
     assert refund.amount == Decimal("-10.00")
     assert refund.method == "refund_cash"
+    journal = session.scalar(select(JournalEntry).where(JournalEntry.source_type == "sale_return", JournalEntry.source_id == result.id))
+    assert journal is not None and journal.status == "posted"
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("14.00")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("14.00")
 
 
 def test_return_cannot_exceed_unreturned_quantity(session):
