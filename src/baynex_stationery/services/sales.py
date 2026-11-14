@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session, joinedload
 from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, Warehouse
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import get_stock_balance, record_stock_movement
+from baynex_stationery.services.document_posting import post_sales_invoice_journal
 
 CENT = Decimal("0.01")
 QTY = Decimal("0.001")
@@ -173,6 +174,7 @@ def _post_draft(session: Session, sale_id: int) -> Sale:
             amount=sale.paid_amount,
             method=sale.payment_method,
         ))
+    post_sales_invoice_journal(session, sale)
     sale.status = "posted"
     session.flush()
     return sale
