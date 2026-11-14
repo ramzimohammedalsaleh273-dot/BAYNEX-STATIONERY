@@ -15,6 +15,7 @@ from baynex_stationery.db.models import (
 )
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import record_stock_movement
+from baynex_stationery.services.document_posting import post_sales_return_journal
 
 REFUND_METHODS = {"cash", "card", "transfer", "credit"}
 
@@ -138,4 +139,5 @@ def create_sale_return(
         reference_id=returned_doc.id, reference_number=clean_number,
         amount=total_refund, details=f"مرتجع مرتبط بفاتورة {sale.number}",
     )
+    post_sales_return_journal(session, returned_doc)
     return returned_doc
