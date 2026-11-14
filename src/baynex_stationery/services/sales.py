@@ -100,6 +100,7 @@ def create_sale(
             product_name=product.name,
             product_sku=product.sku,
             unit_name=product.unit_record.symbol if product.unit_record else product.unit,
+            unit_cost_snapshot=money(product.cost_price),
             quantity=quantity,
             unit_price=unit_price,
             discount=line_discount,
