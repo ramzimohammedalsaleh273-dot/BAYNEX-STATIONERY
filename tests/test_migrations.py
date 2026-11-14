@@ -21,7 +21,11 @@ def test_fresh_database_migrates_to_head(tmp_path):
         }.issubset(tables)
         product_columns = {column["name"] for column in inspector.get_columns("products")}
         sale_item_columns = {column["name"] for column in inspector.get_columns("sale_items")}
+        sale_columns = {column["name"] for column in inspector.get_columns("sales")}
+        journal_line_columns = {column["name"] for column in inspector.get_columns("journal_lines")}
         assert "unit_cost_snapshot" in sale_item_columns
+        assert "customer_id" in sale_columns
+        assert {"customer_id", "supplier_id"}.issubset(journal_line_columns)
         assert "unit_id" in product_columns
         assert "wholesale_price" in product_columns
         with engine.connect() as connection:
