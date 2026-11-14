@@ -20,11 +20,13 @@ def test_fresh_database_migrates_to_head(tmp_path):
             "cashier_events", "suppliers", "purchases", "purchase_items", "purchase_payments", "accounts", "journal_entries", "journal_lines", "treasury_accounts", "treasury_vouchers",
         }.issubset(tables)
         product_columns = {column["name"] for column in inspector.get_columns("products")}
+        sale_item_columns = {column["name"] for column in inspector.get_columns("sale_items")}
+        assert "unit_cost_snapshot" in sale_item_columns
         assert "unit_id" in product_columns
         assert "wholesale_price" in product_columns
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT COUNT(*) FROM units")) >= 7
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0009_treasury"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0010_sale_cost_snapshot"
             assert connection.scalar(text("SELECT COUNT(*) FROM warehouses WHERE is_default=1")) == 1
     finally:
         engine.dispose()
