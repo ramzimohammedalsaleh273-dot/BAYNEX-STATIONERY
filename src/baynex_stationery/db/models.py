@@ -362,3 +362,49 @@ class JournalLine(Base):
     credit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     entry: Mapped[JournalEntry] = relationship(back_populates="lines")
     account: Mapped[Account] = relationship()
+
+
+class TreasuryAccount(Base):
+    """Cashbox or bank account mapped to an asset account in the general ledger."""
+    __tablename__ = "treasury_accounts"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    account_kind: Mapped[str] = mapped_column(String(12), nullable=False)
+    ledger_account_id: Mapped[int] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    ledger_account: Mapped[Account] = relationship()
+
+
+class TreasuryVoucher(Base):
+    """Posted receipt, payment, or internal transfer linked to one journal entry."""
+    __tablename__ = "treasury_vouchers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    voucher_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    treasury_account_id: Mapped[int] = mapped_column(
+        ForeignKey("treasury_accounts.id", ondelete="RESTRICT"), nullable=False
+    )
+    destination_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("treasury_accounts.id", ondelete="RESTRICT")
+    )
+    counter_account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("accounts.id", ondelete="RESTRICT")
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    voucher_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    description: Mapped[str] = mapped_column(String(240), nullable=False)
+    status: Mapped[str] = mapped_column(String(16), default="posted", nullable=False)
+    journal_entry_id: Mapped[int] = mapped_column(
+        ForeignKey("journal_entries.id", ondelete="RESTRICT"), unique=True, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    treasury_account: Mapped[TreasuryAccount] = relationship(foreign_keys=[treasury_account_id])
+    destination_account: Mapped[TreasuryAccount | None] = relationship(foreign_keys=[destination_account_id])
+    counter_account: Mapped[Account | None] = relationship()
+    journal_entry: Mapped[JournalEntry] = relationship()
