@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QInputDialog,
-    QLabel,
     QLineEdit,
     QMessageBox,
     QPushButton,
@@ -24,7 +23,6 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.accounting import (
-    account_ledger,
     create_account,
     create_journal_entry,
     list_accounts,
