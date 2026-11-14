@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
+    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -121,9 +122,7 @@ class AccountingDialog(QDialog):
             ("إيرادات", "revenue"), ("مصروفات", "expense"),
         ):
             kind.addItem(label, value)
-        from PySide6.QtWidgets import QDialog as QtDialog, QDialogButtonBox
-
-        chooser = QtDialog(self)
+        chooser = QDialog(self)
         chooser.setWindowTitle("نوع الحساب")
         layout = QVBoxLayout(chooser)
         layout.addWidget(kind)
@@ -131,7 +130,7 @@ class AccountingDialog(QDialog):
         buttons.accepted.connect(chooser.accept)
         buttons.rejected.connect(chooser.reject)
         layout.addWidget(buttons)
-        if chooser.exec() != QtDialog.DialogCode.Accepted:
+        if chooser.exec() != QDialog.DialogCode.Accepted:
             return
         try:
             with SessionLocal.begin() as session:
