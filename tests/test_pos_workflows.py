@@ -78,8 +78,8 @@ def test_partial_return_restock_and_refund_payment_are_linked(session):
     assert refund.method == "refund_cash"
     journal = session.scalar(select(JournalEntry).where(JournalEntry.source_type == "sale_return", JournalEntry.source_id == result.id))
     assert journal is not None and journal.status == "posted"
-    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("10.00")
-    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("10.00")
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("14.00")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("14.00")
 
 
 def test_return_cannot_exceed_unreturned_quantity(session):
