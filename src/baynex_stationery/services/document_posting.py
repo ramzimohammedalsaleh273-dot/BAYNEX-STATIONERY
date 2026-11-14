@@ -10,7 +10,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from baynex_stationery.db.models import Account, JournalEntry, SaleItem
+from baynex_stationery.db.models import Account, JournalEntry, SaleItem, TreasuryAccount
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.accounting import (
     create_account,
@@ -28,6 +28,22 @@ def _account(session: Session, *, code: str, name: str, account_type: str) -> Ac
             raise ValueError(f"حساب الربط المحاسبي {code} غير متاح أو نوعه غير صحيح")
         return account
     return create_account(session, code=code, name=name, account_type=account_type)
+
+
+def _unique_treasury_ledger(session: Session, method: str):
+    """Use a real cash/bank ledger only when the method maps unambiguously."""
+    kind = "cash" if method == "cash" else "bank" if method in {"card", "transfer"} else None
+    if kind is None:
+        return None
+    accounts = list(session.scalars(
+        select(TreasuryAccount).where(
+            TreasuryAccount.account_kind == kind,
+            TreasuryAccount.is_active.is_(True),
+        ).order_by(TreasuryAccount.code.asc())
+    ))
+    if len(accounts) != 1:
+        return None
+    return session.get(Account, accounts[0].ledger_account_id)
 
 
 def _post_once(
@@ -63,7 +79,8 @@ def post_sales_invoice_journal(session: Session, sale) -> JournalEntry:
 
     lines: list[dict] = []
     if paid:
-        clearing = _account(
+        treasury_ledger = _unique_treasury_ledger(session, sale.payment_method)
+        clearing = treasury_ledger or _account(
             session, code="1090", name="مدفوعات المبيعات تحت التسوية",
             account_type="asset",
         )
@@ -111,11 +128,16 @@ def post_purchase_invoice_journal(session: Session, purchase) -> JournalEntry:
         input_tax = _account(session, code="1300", name="ضريبة مدخلات قابلة للاسترداد", account_type="asset")
         lines.append({"account_id": input_tax.id, "debit": tax})
     if paid:
-        clearing = _account(
-            session, code="2090", name="مدفوعات المشتريات تحت التسوية",
-            account_type="liability",
-        )
-        lines.append({"account_id": clearing.id, "credit": paid})
+        payment_method = purchase.payments[0].method if purchase.payments else "cash"
+        treasury_ledger = _unique_treasury_ledger(session, payment_method)
+        if treasury_ledger is not None:
+            lines.append({"account_id": treasury_ledger.id, "credit": paid})
+        else:
+            clearing = _account(
+                session, code="2090", name="مدفوعات المشتريات تحت التسوية",
+                account_type="liability",
+            )
+            lines.append({"account_id": clearing.id, "credit": paid})
     if payable:
         suppliers = _account(session, code="2100", name="الموردون", account_type="liability")
         lines.append({"account_id": suppliers.id, "credit": payable})
