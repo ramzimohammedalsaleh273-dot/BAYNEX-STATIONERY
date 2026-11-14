@@ -14,8 +14,8 @@ def create_customer(
     clean_code, clean_name = code.strip().upper(), name.strip()
     if not clean_code or len(clean_code) > 40:
         raise ValueError("رمز العميل مطلوب ولا يتجاوز 40 حرفاً")
-    if not clean_name or len(clean_name) > 180:
-        raise ValueError("اسم العميل مطلوب ولا يتجاوز 180 حرفاً")
+    if not clean_name or len(clean_name) > 160:
+        raise ValueError("اسم العميل مطلوب ولا يتجاوز 160 حرفاً")
     customer = Customer(
         code=clean_code, name=clean_name, phone=phone.strip() if phone else None,
         address=address.strip() if address else None,
