@@ -146,29 +146,39 @@ def list_journal_entries(
 
 def trial_balance(session: Session) -> list[dict]:
     """Return posted debit/credit totals and net balance per account."""
+    posted_lines = (
+        select(
+            JournalLine.account_id.label("account_id"),
+            JournalLine.debit.label("debit"),
+            JournalLine.credit.label("credit"),
+        )
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .where(JournalEntry.status == "posted")
+        .subquery()
+    )
     rows = session.execute(
         select(
             Account.id, Account.code, Account.name, Account.account_type,
-            func.coalesce(func.sum(JournalLine.debit), 0).label("debit"),
-            func.coalesce(func.sum(JournalLine.credit), 0).label("credit"),
+            func.coalesce(func.sum(posted_lines.c.debit), 0).label("debit"),
+            func.coalesce(func.sum(posted_lines.c.credit), 0).label("credit"),
         )
-        .outerjoin(JournalLine, JournalLine.account_id == Account.id)
-        .outerjoin(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .outerjoin(posted_lines, posted_lines.c.account_id == Account.id)
         .where(Account.is_active.is_(True))
-        .where((JournalEntry.id.is_(None)) | (JournalEntry.status == "posted"))
         .group_by(Account.id, Account.code, Account.name, Account.account_type)
         .order_by(Account.code.asc())
     ).all()
-    return [
-        {
+    result = []
+    for row in rows:
+        debit = money(row.debit)
+        credit = money(row.credit)
+        credit_nature = row.account_type in {"liability", "equity", "revenue"}
+        balance = credit - debit if credit_nature else debit - credit
+        result.append({
             "account_id": row.id, "code": row.code, "name": row.name,
-            "account_type": row.account_type,
-            "debit": money(row.debit), "credit": money(row.credit),
-            "balance": money(Decimal(str(row.debit)) - Decimal(str(row.credit))),
-        }
-        for row in rows
-    ]
-
+            "account_type": row.account_type, "debit": debit,
+            "credit": credit, "balance": money(balance),
+        })
+    return result
 
 def account_ledger(session: Session, *, account_id: int, limit: int = 1000) -> list[dict]:
     account = session.get(Account, account_id)
@@ -182,9 +192,10 @@ def account_ledger(session: Session, *, account_id: int, limit: int = 1000) -> l
         .limit(max(1, min(int(limit), 5000)))
     ).all()
     running = Decimal("0.00")
+    credit_nature = account.account_type in {"liability", "equity", "revenue"}
     result = []
     for entry, line in rows:
-        running += line.debit - line.credit
+        running += line.credit - line.debit if credit_nature else line.debit - line.credit
         result.append({
             "date": entry.entry_date, "number": entry.number,
             "description": line.description or entry.description,
