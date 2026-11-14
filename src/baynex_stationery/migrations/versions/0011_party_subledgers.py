@@ -52,7 +52,7 @@ def upgrade() -> None:
                 "SELECT COALESCE(MAX(id), 0) + 1 FROM customers"
             )).scalar_one()
             code = f"LEG-{next_id:08d}"
-            result = connection.execute(sa.text(
+            connection.execute(sa.text(
                 "INSERT INTO customers (id, code, name, phone, is_active, created_at) "
                 "VALUES (:id, :code, :name, :phone, 1, :created_at)"
             ), {
