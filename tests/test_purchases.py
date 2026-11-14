@@ -5,7 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Product, Warehouse
+from baynex_stationery.db.models import JournalEntry, Product, Warehouse
 from baynex_stationery.services.inventory import get_stock_balance
 from baynex_stationery.services.purchases import (
     create_purchase,
@@ -44,6 +44,10 @@ def test_purchase_draft_does_not_change_stock_and_post_receives_it(session):
     assert purchase.status == "posted"
     assert purchase.paid_amount == Decimal("4.00")
     assert len(list_purchases(session, status="posted")) == 1
+    journal = session.scalar(select(JournalEntry).where(JournalEntry.source_type == "purchase", JournalEntry.source_id == purchase.id))
+    assert journal is not None and journal.status == "posted"
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("13.00")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("13.00")
 
 
 def test_purchase_cannot_be_posted_twice(session):
