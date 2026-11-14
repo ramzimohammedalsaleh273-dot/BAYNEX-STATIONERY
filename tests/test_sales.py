@@ -69,8 +69,11 @@ def test_post_sale_decrements_stock_and_records_documents(session):
     assert session.scalar(select(Payment)).amount == Decimal("11.50")
     journal = session.scalar(select(JournalEntry).where(JournalEntry.source_type == "sale", JournalEntry.source_id == sale.id))
     assert journal is not None and journal.status == "posted"
-    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("11.50")
-    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("11.50")
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("15.50")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("15.50")
+    account_names = {line.account.name for line in journal.lines}
+    assert "تكلفة البضاعة المباعة" in account_names
+    assert "مخزون البضاعة" in account_names
 
 
 def test_sale_rejects_insufficient_stock_without_creating_sale(session):
