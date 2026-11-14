@@ -103,6 +103,6 @@ def test_main_window_uses_two_compact_toolbars_and_preserves_actions(monkeypatch
     assert window.table.columnCount() == 9
     assert window.table.horizontalHeaderItem(7).text() == "سعر الجملة"
     assert [action.text() for action in window.menuBar().actions()] == [
-        "ملف", "الأصناف", "المبيعات", "المخزون", "مساعدة"
+        "ملف", "الأصناف", "المبيعات", "المشتريات", "المخزون", "مساعدة"
     ]
     window.close()
