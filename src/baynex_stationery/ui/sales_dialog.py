@@ -201,6 +201,9 @@ class SalesInvoiceDialog(QDialog):
         if customer_record is not None:
             self.customer.setText(customer_record.name)
             self.phone.setText(customer_record.phone or "")
+        else:
+            self.customer.setText("عميل نقدي")
+            self.phone.clear()
 
     def add_customer(self):
         code, ok = QInputDialog.getText(self, "عميل جديد", "رمز العميل:")
