@@ -124,6 +124,18 @@ class PurchasesDialog(QDialog):
             totals.addWidget(value)
         root.addLayout(totals)
 
+        history_box = QGroupBox("سجل فواتير المشتريات")
+        history_layout = QVBoxLayout(history_box)
+        self.history_table = QTableWidget(0, 7)
+        self.history_table.setHorizontalHeaderLabels(
+            ["التاريخ", "رقم الفاتورة", "المورد", "الحالة", "الإجمالي", "المدفوع", "المتبقي"]
+        )
+        configure_data_table(self.history_table, row_height=30)
+        self.history_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.history_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        history_layout.addWidget(self.history_table)
+        root.addWidget(history_box, 1)
+
         actions = QHBoxLayout()
         self.refresh_button = QPushButton("تحديث السجل")
         self.post_button = QPushButton("حفظ وترحيل فاتورة الشراء")
@@ -146,6 +158,7 @@ class PurchasesDialog(QDialog):
         self.refresh_suppliers()
         self.fill_cost()
         self.recalculate()
+        self.refresh_history()
 
     @staticmethod
     def _decimal(value: str, label: str, *, positive: bool = False) -> Decimal:
@@ -280,11 +293,16 @@ class PurchasesDialog(QDialog):
     def refresh_history(self):
         with SessionLocal() as session:
             self.history = list_purchases(session, limit=200)
-        summary = "\n".join(
-            f"{item.number} | {item.status} | {item.total:.2f}"
-            for item in self.history[:12]
-        )
-        QMessageBox.information(
-            self, "سجل فواتير المشتريات",
-            summary or "لا توجد فواتير مشتريات مسجلة حتى الآن",
-        )
+        self.history_table.setRowCount(len(self.history))
+        status_names = {"draft": "مسودة", "posted": "مرحّلة", "cancelled": "ملغاة"}
+        for row, item in enumerate(self.history):
+            paid = item.paid_amount
+            values = [
+                item.invoice_date.strftime("%Y-%m-%d"), item.number,
+                item.supplier.name if item.supplier else "—",
+                status_names.get(item.status, item.status), f"{item.total:.2f}",
+                f"{paid:.2f}", f"{item.total - paid:.2f}",
+            ]
+            for column, value in enumerate(values):
+                self.history_table.setItem(row, column, QTableWidgetItem(str(value)))
+        self.history_table.resizeColumnsToContents()
