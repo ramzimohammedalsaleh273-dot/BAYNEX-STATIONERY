@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.db.models import JournalEntry, Payment, Product, Sale, SaleItem, StockMovement
 from baynex_stationery.services.inventory import (
     create_warehouse,
     ensure_default_warehouse,
@@ -60,6 +60,10 @@ def test_post_sale_decrements_stock_and_records_documents(session):
     movement = session.scalar(select(StockMovement).where(StockMovement.movement_type == "sale"))
     assert movement.quantity_delta == Decimal("-2.000")
     assert session.scalar(select(Payment)).amount == Decimal("11.50")
+    journal = session.scalar(select(JournalEntry).where(JournalEntry.source_type == "sale", JournalEntry.source_id == sale.id))
+    assert journal is not None and journal.status == "posted"
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("11.50")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("11.50")
 
 
 def test_sale_rejects_insufficient_stock_without_creating_sale(session):
