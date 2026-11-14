@@ -6,8 +6,18 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QFormLayout, QGroupBox, QHBoxLayout, QInputDialog,
-    QLabel, QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
+    QComboBox,
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
 )
 from sqlalchemy.exc import SQLAlchemyError
@@ -16,7 +26,11 @@ from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.purchases import (
-    create_purchase, create_supplier, list_purchases, list_suppliers, post_purchase,
+    create_purchase,
+    create_supplier,
+    list_purchases,
+    list_suppliers,
+    post_purchase,
 )
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
@@ -252,7 +266,7 @@ class PurchasesDialog(QDialog):
         try:
             paid = self._decimal(self.paid.text(), "المدفوع")
         except ValueError:
-            paid = subtotal + Decimal("1")
+            paid = subtotal + Decimal(1)
         self.subtotal.setText(f"{subtotal:.2f}")
         self.total.setText(f"{subtotal:.2f}")
         self.remaining.setText(f"{subtotal - paid:.2f}")
