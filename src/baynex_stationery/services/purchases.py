@@ -111,9 +111,9 @@ def create_purchase(
             quantity=quantity, unit_cost=unit_cost, discount=discount,
             tax_amount=tax, line_total=total,
         ))
-    invoice_discount = _amount(0, "خصم الفاتورة", CENT)
+    line_discount_total = sum((item.discount for item in items), Decimal("0.00"))
     tax_total = sum((item.tax_amount for item in items), Decimal("0.00"))
-    total = money(sum((item.line_total for item in items), Decimal("0.00")) - invoice_discount)
+    total = money(sum((item.line_total for item in items), Decimal("0.00")))
     paid = _amount(paid_amount, "المبلغ المدفوع", CENT)
     if paid > total:
         raise ValueError("المبلغ المدفوع لا يجوز أن يتجاوز إجمالي الفاتورة")
@@ -121,7 +121,7 @@ def create_purchase(
         number=clean_number, supplier_id=supplier_id, warehouse_id=warehouse_id,
         invoice_date=invoice_date or datetime.now(UTC),
         supplier_invoice_number=supplier_invoice_number.strip() if supplier_invoice_number else None,
-        subtotal=money(subtotal), discount=invoice_discount, tax_amount=money(tax_total),
+        subtotal=money(subtotal), discount=money(line_discount_total), tax_amount=money(tax_total),
         total=total, paid_amount=paid, notes=notes.strip() if notes else None,
     )
     purchase.items.extend(items)
