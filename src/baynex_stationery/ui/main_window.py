@@ -395,6 +395,9 @@ class MainWindow(QMainWindow):
         purchase_menu = self.menuBar().addMenu("المشتريات")
         purchase_action = purchase_menu.addAction("الموردون وفواتير المشتريات")
         purchase_action.triggered.connect(self.open_purchases)
+        accounting_menu = self.menuBar().addMenu("الحسابات")
+        accounting_action = accounting_menu.addAction("دليل الحسابات والقيود اليومية")
+        accounting_action.triggered.connect(self.open_accounting)
         stock_menu = self.menuBar().addMenu("المخزون")
         for label, handler in (
             ("إدخال مخزون", self.receive_selected),
@@ -443,6 +446,12 @@ class MainWindow(QMainWindow):
         dialog = SalesInvoiceDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.refresh_products()
+
+    def open_accounting(self):
+        from baynex_stationery.ui.accounting_dialog import AccountingDialog
+
+        dialog = AccountingDialog(self)
+        dialog.exec()
 
     def open_purchases(self):
         from baynex_stationery.ui.purchases_dialog import PurchasesDialog
