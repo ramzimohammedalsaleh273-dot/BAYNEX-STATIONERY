@@ -87,7 +87,7 @@ def post_sales_invoice_journal(session: Session, sale) -> JournalEntry:
         lines.append({"account_id": clearing.id, "debit": paid})
     if receivable:
         ar = _account(session, code="1100", name="العملاء وأوراق القبض", account_type="asset")
-        lines.append({"account_id": ar.id, "debit": receivable})
+        lines.append({"account_id": ar.id, "debit": receivable, "customer_id": sale.customer_id})
     if revenue:
         sales = _account(session, code="4100", name="إيرادات المبيعات", account_type="revenue")
         lines.append({"account_id": sales.id, "credit": revenue})
@@ -140,7 +140,7 @@ def post_purchase_invoice_journal(session: Session, purchase) -> JournalEntry:
             lines.append({"account_id": clearing.id, "credit": paid})
     if payable:
         suppliers = _account(session, code="2100", name="الموردون", account_type="liability")
-        lines.append({"account_id": suppliers.id, "credit": payable})
+        lines.append({"account_id": suppliers.id, "credit": payable, "supplier_id": purchase.supplier_id})
     return _post_once(
         session, source_type="purchase", source_id=purchase.id,
         number=f"AUTO-PUR-{purchase.id}", description=f"قيد فاتورة المشتريات {purchase.number}",
