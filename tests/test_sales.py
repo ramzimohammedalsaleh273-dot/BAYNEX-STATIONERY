@@ -20,6 +20,7 @@ from baynex_stationery.services.inventory import (
     record_stock_movement,
 )
 from baynex_stationery.services.products import create_product
+from baynex_stationery.services.treasury import create_treasury_account
 from baynex_stationery.services.sales import create_sale, list_sales, post_sale
 
 
@@ -173,3 +174,24 @@ def test_sales_history_searches_invoice_number_and_customer(session):
     assert len(list_sales(session, search="النور")) == 1
     assert len(list_sales(session, search="2026-001")) == 1
     assert list_sales(session, search="غير موجود") == []
+
+def test_sales_payment_uses_the_only_active_cashbox_ledger(session):
+    product = make_product(session)
+    cashbox = create_treasury_account(
+        session, code="CASH-ONLY", name="الصندوق الوحيد",
+        account_kind="cash", ledger_code="1001",
+    )
+    warehouse = ensure_default_warehouse(session)
+    sale = create_sale(
+        session, number="CASH-LINK-001", warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "1"}],
+        paid_amount="5.00", payment_method="cash",
+    )
+    post_sale(session, sale_id=sale.id)
+    journal = session.scalar(select(JournalEntry).where(
+        JournalEntry.source_type == "sale", JournalEntry.source_id == sale.id,
+    ))
+    assert any(
+        line.account_id == cashbox.ledger_account_id and line.debit == Decimal("5.00")
+        for line in journal.lines
+    )
