@@ -5,7 +5,14 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
-from baynex_stationery.db.models import JournalEntry, Payment, Product, Sale, SaleItem, StockMovement
+from baynex_stationery.db.models import (
+    JournalEntry,
+    Payment,
+    Product,
+    Sale,
+    SaleItem,
+    StockMovement,
+)
 from baynex_stationery.services.inventory import (
     create_warehouse,
     ensure_default_warehouse,
