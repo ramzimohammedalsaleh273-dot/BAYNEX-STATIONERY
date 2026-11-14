@@ -8,7 +8,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from baynex_stationery.db.models import (
-    Product, Purchase, PurchaseItem, PurchasePayment, Supplier, Warehouse,
+    Product,
+    Purchase,
+    PurchaseItem,
+    PurchasePayment,
+    Supplier,
+    Warehouse,
 )
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import get_stock_balance, record_stock_movement
