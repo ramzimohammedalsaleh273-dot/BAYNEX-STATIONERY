@@ -25,20 +25,17 @@ def upgrade() -> None:
     )
     op.create_index("ix_customers_name", "customers", ["name"])
     op.create_index("ix_customers_phone", "customers", ["phone"])
-    op.add_column("sales", sa.Column("customer_id", sa.Integer(), nullable=True))
-    op.create_foreign_key(
-        "fk_sales_customer_id_customers", "sales", "customers",
-        ["customer_id"], ["id"], ondelete="RESTRICT",
+    op.add_column(
+        "sales", sa.Column("customer_id", sa.Integer(),
+                           sa.ForeignKey("customers.id", ondelete="RESTRICT")),
     )
-    op.add_column("journal_lines", sa.Column("customer_id", sa.Integer(), nullable=True))
-    op.add_column("journal_lines", sa.Column("supplier_id", sa.Integer(), nullable=True))
-    op.create_foreign_key(
-        "fk_journal_lines_customer_id_customers", "journal_lines", "customers",
-        ["customer_id"], ["id"], ondelete="RESTRICT",
+    op.add_column(
+        "journal_lines", sa.Column("customer_id", sa.Integer(),
+                                   sa.ForeignKey("customers.id", ondelete="RESTRICT")),
     )
-    op.create_foreign_key(
-        "fk_journal_lines_supplier_id_suppliers", "journal_lines", "suppliers",
-        ["supplier_id"], ["id"], ondelete="RESTRICT",
+    op.add_column(
+        "journal_lines", sa.Column("supplier_id", sa.Integer(),
+                                   sa.ForeignKey("suppliers.id", ondelete="RESTRICT")),
     )
 
     connection = op.get_bind()
@@ -91,11 +88,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_journal_lines_supplier_id_suppliers", "journal_lines", type_="foreignkey")
-    op.drop_constraint("fk_journal_lines_customer_id_customers", "journal_lines", type_="foreignkey")
     op.drop_column("journal_lines", "supplier_id")
     op.drop_column("journal_lines", "customer_id")
-    op.drop_constraint("fk_sales_customer_id_customers", "sales", type_="foreignkey")
     op.drop_column("sales", "customer_id")
     op.drop_index("ix_customers_phone", table_name="customers")
     op.drop_index("ix_customers_name", table_name="customers")
