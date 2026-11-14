@@ -6,8 +6,18 @@ from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox, QDialog, QFormLayout, QGroupBox, QHBoxLayout, QInputDialog,
-    QLabel, QLineEdit, QMessageBox, QPushButton, QTableWidget, QTableWidgetItem,
+    QComboBox,
+    QDialog,
+    QFormLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMessageBox,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
 )
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,8 +25,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.accounting import list_accounts
 from baynex_stationery.services.treasury import (
-    create_treasury_account, create_treasury_voucher, list_treasury_accounts,
-    list_treasury_vouchers, treasury_balance, treasury_summary,
+    create_treasury_account,
+    create_treasury_voucher,
+    list_treasury_accounts,
+    list_treasury_vouchers,
+    treasury_balance,
+    treasury_summary,
 )
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
