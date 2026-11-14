@@ -1,12 +1,24 @@
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
+from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Product, Warehouse
 from baynex_stationery.services.purchases import (
     create_purchase, create_supplier, list_purchases, post_purchase,
 )
 from baynex_stationery.services.inventory import get_stock_balance
+
+
+@pytest.fixture
+def session():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    with Session(engine) as db:
+        yield db
+    engine.dispose()
 
 
 def test_purchase_draft_does_not_change_stock_and_post_receives_it(session):
