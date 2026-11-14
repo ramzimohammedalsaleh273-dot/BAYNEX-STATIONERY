@@ -7,7 +7,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from baynex_stationery.db.models import Payment, Product, Sale, SaleItem, Warehouse
+from baynex_stationery.db.models import Customer, Payment, Product, Sale, SaleItem, Warehouse
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.document_posting import post_sales_invoice_journal
 from baynex_stationery.services.inventory import get_stock_balance, record_stock_movement
@@ -38,6 +38,7 @@ def create_sale(
     lines: list[dict],
     customer_name: str = "عميل نقدي",
     customer_phone: str | None = None,
+    customer_id: int | None = None,
     payment_method: str = "cash",
     paid_amount: Decimal | str | int = Decimal(0),
     discount: Decimal | str | int = Decimal(0),
@@ -47,7 +48,11 @@ def create_sale(
 ) -> Sale:
     """Create a draft invoice; no stock or cash movement occurs until posting."""
     clean_number = number.strip()
-    clean_customer = customer_name.strip()
+    linked_customer = session.get(Customer, customer_id) if customer_id is not None else None
+    if customer_id is not None and (linked_customer is None or not linked_customer.is_active):
+        raise ValueError("العميل المحدد غير موجود أو غير نشط")
+    clean_customer = linked_customer.name if linked_customer else customer_name.strip()
+    customer_phone = linked_customer.phone if linked_customer else customer_phone
     if not clean_number or len(clean_number) > 40:
         raise ValueError("رقم الفاتورة مطلوب ولا يتجاوز 40 حرفاً")
     if not clean_customer or len(clean_customer) > 160:
@@ -121,6 +126,7 @@ def create_sale(
     sale = Sale(
         number=clean_number,
         status="draft",
+        customer_id=linked_customer.id if linked_customer else None,
         customer_name=clean_customer,
         customer_phone=customer_phone.strip() if customer_phone else None,
         invoice_date=invoice_date or datetime.now(UTC),
