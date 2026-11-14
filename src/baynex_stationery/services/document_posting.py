@@ -180,7 +180,8 @@ def post_sales_return_journal(session: Session, returned_doc) -> JournalEntry:
             account_type="liability",
         )
         lines.append({"account_id": tax_due.id, "debit": returned_tax})
-    clearing = _account(
+    treasury_ledger = _unique_treasury_ledger(session, returned_doc.refund_method)
+    clearing = treasury_ledger or _account(
         session, code="1090", name="مدفوعات المبيعات تحت التسوية",
         account_type="asset",
     )
