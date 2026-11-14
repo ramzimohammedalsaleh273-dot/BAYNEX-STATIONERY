@@ -7,7 +7,7 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from baynex_stationery.db.models import Account, JournalEntry, JournalLine
+from baynex_stationery.db.models import Account, Customer, JournalEntry, JournalLine, Supplier
 from baynex_stationery.domain.pricing import money
 
 ACCOUNT_TYPES = {"asset", "liability", "equity", "revenue", "expense"}
@@ -103,10 +103,23 @@ def create_journal_entry(
             raise ValueError(f"الحساب في السطر {index} غير موجود أو غير نشط")
         debit = _money(row.get("debit", 0), f"مدين السطر {index}")
         credit = _money(row.get("credit", 0), f"دائن السطر {index}")
+        customer_id = row.get("customer_id")
+        supplier_id = row.get("supplier_id")
+        if customer_id is not None and supplier_id is not None:
+            raise ValueError("لا يمكن ربط سطر القيد بعميل ومورد معاً")
+        if customer_id is not None:
+            customer = session.get(Customer, int(customer_id))
+            if customer is None or not customer.is_active or debit <= 0:
+                raise ValueError(f"العميل في السطر {index} غير متاح أو اتجاه القيد غير صحيح")
+        if supplier_id is not None:
+            supplier = session.get(Supplier, int(supplier_id))
+            if supplier is None or not supplier.is_active or credit <= 0:
+                raise ValueError(f"المورد في السطر {index} غير متاح أو اتجاه القيد غير صحيح")
         if (debit > 0) == (credit > 0):
             raise ValueError(f"السطر {index} يجب أن يحتوي مديناً أو دائناً فقط")
         entry.lines.append(JournalLine(
-            account_id=account_id, description=(row.get("description") or "").strip() or None,
+            account_id=account_id, customer_id=customer_id, supplier_id=supplier_id,
+            description=(row.get("description") or "").strip() or None,
             debit=debit, credit=credit,
         ))
     session.add(entry)

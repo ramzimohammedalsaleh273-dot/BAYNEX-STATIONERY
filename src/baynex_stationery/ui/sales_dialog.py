@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
+    QInputDialog,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -25,6 +26,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
 from baynex_stationery.services.products import list_products
+from baynex_stationery.services.customers import create_customer, list_customers
 from baynex_stationery.services.sales import create_sale, post_sale
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
@@ -41,6 +43,7 @@ class SalesInvoiceDialog(QDialog):
             ensure_default_warehouse(session)
             self.products = list_products(session)
             self.warehouses = list_warehouses(session)
+            self.customers = list_customers(session)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(10, 8, 10, 8)
@@ -59,6 +62,16 @@ class SalesInvoiceDialog(QDialog):
         self.invoice_date.setCalendarPopup(True)
         self.customer = QLineEdit("عميل نقدي")
         self.phone = QLineEdit()
+        self.customer_account = QComboBox()
+        self.customer_account.addItem("عميل نقدي / بدون حساب", None)
+        for customer_record in self.customers:
+            self.customer_account.addItem(
+                f"{customer_record.code} | {customer_record.name}", customer_record.id
+            )
+        self.add_customer_button = QPushButton("عميل جديد")
+        customer_row = QHBoxLayout()
+        customer_row.addWidget(self.customer_account, 1)
+        customer_row.addWidget(self.add_customer_button)
         self.warehouse = QComboBox()
         for warehouse in self.warehouses:
             self.warehouse.addItem(warehouse.name, warehouse.id)
@@ -69,6 +82,7 @@ class SalesInvoiceDialog(QDialog):
         self.invoice_discount = QLineEdit("0.00")
         form.addRow("رقم الفاتورة:", self.number)
         form.addRow("تاريخ الفاتورة:", self.invoice_date)
+        form.addRow("حساب العميل:", customer_row)
         form.addRow("اسم العميل:", self.customer)
         form.addRow("رقم الهاتف:", self.phone)
         form.addRow("المستودع:", self.warehouse)
@@ -154,12 +168,62 @@ class SalesInvoiceDialog(QDialog):
         add_line.clicked.connect(self.add_line)
         remove_line.clicked.connect(self.remove_line)
         self.save_button.clicked.connect(self.save_invoice)
+        self.add_customer_button.clicked.connect(self.add_customer)
+        self.customer_account.currentIndexChanged.connect(self.select_customer)
         self.cancel_button.clicked.connect(self.reject)
         self.invoice_discount.textChanged.connect(self.recalculate)
         self.paid.textChanged.connect(self.recalculate)
         self.table.itemChanged.connect(self.recalculate)
         self.product.currentIndexChanged.connect(self._fill_price)
         self._fill_price()
+
+    def refresh_customers(self, selected_id=None):
+        with SessionLocal() as session:
+            self.customers = list_customers(session)
+        self.customer_account.blockSignals(True)
+        self.customer_account.clear()
+        self.customer_account.addItem("عميل نقدي / بدون حساب", None)
+        for customer_record in self.customers:
+            self.customer_account.addItem(
+                f"{customer_record.code} | {customer_record.name}", customer_record.id
+            )
+        index = self.customer_account.findData(selected_id)
+        if index >= 0:
+            self.customer_account.setCurrentIndex(index)
+        self.customer_account.blockSignals(False)
+        self.select_customer()
+
+    def select_customer(self):
+        customer_id = self.customer_account.currentData()
+        customer_record = next(
+            (item for item in self.customers if item.id == customer_id), None
+        )
+        if customer_record is not None:
+            self.customer.setText(customer_record.name)
+            self.phone.setText(customer_record.phone or "")
+        else:
+            self.customer.setText("عميل نقدي")
+            self.phone.clear()
+
+    def add_customer(self):
+        code, ok = QInputDialog.getText(self, "عميل جديد", "رمز العميل:")
+        if not ok:
+            return
+        name, ok = QInputDialog.getText(self, "عميل جديد", "اسم العميل:")
+        if not ok:
+            return
+        phone, ok = QInputDialog.getText(self, "عميل جديد", "رقم الهاتف (اختياري):")
+        if not ok:
+            return
+        try:
+            with SessionLocal.begin() as session:
+                customer_record = create_customer(
+                    session, code=code, name=name, phone=phone
+                )
+                customer_id = customer_record.id
+            self.refresh_customers(customer_id)
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر حفظ العميل", str(exc))
 
     def _fill_price(self):
         product_id = self.product.currentData()
@@ -281,6 +345,7 @@ class SalesInvoiceDialog(QDialog):
                     lines=lines,
                     customer_name=self.customer.text(),
                     customer_phone=self.phone.text(),
+                    customer_id=self.customer_account.currentData(),
                     payment_method=self.payment.currentData(),
                     paid_amount=self.paid.text(),
                     discount=self.invoice_discount.text(),
