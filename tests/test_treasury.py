@@ -36,7 +36,7 @@ def setup_cash(session):
 
 
 def test_opening_balance_and_receipt_are_reflected_in_ledger(session):
-    cash, expense, revenue = setup_cash(session)
+    cash, _, revenue = setup_cash(session)
     assert treasury_balance(session, treasury_account_id=cash.id) == Decimal("1000.00")
     receipt = create_treasury_voucher(
         session, number="RC-001", voucher_type="receipt",
