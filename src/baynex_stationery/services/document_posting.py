@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.models import Account, JournalEntry
+from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.accounting import create_account, create_journal_entry, post_journal_entry
 
 CENT = Decimal("0.01")
@@ -72,6 +73,15 @@ def post_sales_invoice_journal(session: Session, sale) -> JournalEntry:
     if tax:
         tax_due = _account(session, code="2300", name="ضريبة مخرجات مستحقة", account_type="liability")
         lines.append({"account_id": tax_due.id, "credit": tax})
+    cost_of_goods = money(sum(
+        (Decimal(item.quantity) * Decimal(item.unit_cost_snapshot) for item in sale.items),
+        Decimal("0.00"),
+    ))
+    if cost_of_goods:
+        cogs = _account(session, code="5100", name="تكلفة البضاعة المباعة", account_type="expense")
+        inventory = _account(session, code="1200", name="مخزون البضاعة", account_type="asset")
+        lines.append({"account_id": cogs.id, "debit": cost_of_goods})
+        lines.append({"account_id": inventory.id, "credit": cost_of_goods})
     return _post_once(
         session, source_type="sale", source_id=sale.id,
         number=f"AUTO-SALE-{sale.id}", description=f"قيد فاتورة المبيعات {sale.number}",
