@@ -33,7 +33,7 @@ def test_customer_sale_is_linked_to_customer_subledger(session):
     session.flush()
     record_stock_movement(
         session, product_id=product.id, warehouse_id=warehouse.id,
-        quantity_delta=Decimal("5"), movement_type="opening",
+        quantity_delta=Decimal(5), movement_type="opening,
         reference_type="test", reference_id=product.id,
     )
     customer = create_customer(session, code="C-001", name="مكتبة النور", phone="777")
@@ -55,7 +55,7 @@ def test_supplier_purchase_is_linked_to_supplier_subledger(session):
     from baynex_stationery.db.models import Warehouse
 
     warehouse = Warehouse(code="SUP-WH", name="مستودع", is_default=True)
-    product = Product(sku="SUP-PARTY-01", name="قلم", cost_price=Decimal("1"), sale_price=Decimal("2"))
+    product = Product(sku="SUP-PARTY-01", name="قلم", cost_price=Decimal(1), sale_price=Decimal(2))
     session.add_all([warehouse, product])
     supplier = create_supplier(session, code="SUP-001", name="مورد الأقلام")
     purchase = create_purchase(
