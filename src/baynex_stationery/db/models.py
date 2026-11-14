@@ -284,6 +284,7 @@ class Purchase(Base):
     notes: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    supplier: Mapped[Supplier] = relationship()
     items: Mapped[list[PurchaseItem]] = relationship(back_populates="purchase", cascade="all, delete-orphan")
     payments: Mapped[list[PurchasePayment]] = relationship(back_populates="purchase", cascade="all, delete-orphan")
 
