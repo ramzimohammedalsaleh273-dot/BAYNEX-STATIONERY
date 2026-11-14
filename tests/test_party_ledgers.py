@@ -33,7 +33,7 @@ def test_customer_sale_is_linked_to_customer_subledger(session):
     session.flush()
     record_stock_movement(
         session, product_id=product.id, warehouse_id=warehouse.id,
-        quantity_delta=Decimal(5), movement_type="opening,
+        quantity_delta=Decimal(5), movement_type="opening",
         reference_type="test", reference_id=product.id,
     )
     customer = create_customer(session, code="C-001", name="مكتبة النور", phone="777")
