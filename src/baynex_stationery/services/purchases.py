@@ -17,6 +17,7 @@ from baynex_stationery.db.models import (
 )
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.inventory import get_stock_balance, record_stock_movement
+from baynex_stationery.services.document_posting import post_purchase_invoice_journal
 
 CENT = Decimal("0.01")
 QTY = Decimal("0.001")
@@ -158,6 +159,7 @@ def post_purchase(session: Session, *, purchase_id: int) -> Purchase:
             note=f"فاتورة شراء {purchase.number}",
             reference_type="purchase", reference_id=purchase.id,
         )
+    post_purchase_invoice_journal(session, purchase)
     purchase.status = "posted"
     purchase.posted_at = datetime.now(UTC)
     session.flush()
