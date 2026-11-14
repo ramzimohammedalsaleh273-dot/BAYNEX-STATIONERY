@@ -148,7 +148,10 @@ def post_purchase(session: Session, *, purchase_id: int) -> Purchase:
         old_qty = get_stock_balance(session, product.id)
         new_qty = old_qty + item.quantity
         if new_qty > 0:
-            product.cost_price = money(((old_qty * product.cost_price) + (item.quantity * item.unit_cost)) / new_qty)
+            net_unit_cost = item.unit_cost - (item.discount / item.quantity)
+            product.cost_price = money(
+                ((old_qty * product.cost_price) + (item.quantity * net_unit_cost)) / new_qty
+            )
         record_stock_movement(
             session, product_id=item.product_id, warehouse_id=purchase.warehouse_id,
             quantity_delta=item.quantity, movement_type="receipt",
