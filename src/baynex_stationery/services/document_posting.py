@@ -110,3 +110,27 @@ def post_purchase_invoice_journal(session: Session, purchase) -> JournalEntry:
         number=f"AUTO-PUR-{purchase.id}", description=f"قيد فاتورة المشتريات {purchase.number}",
         entry_date=purchase.invoice_date, lines=lines,
     )
+
+def post_sales_return_journal(session: Session, returned_doc) -> JournalEntry:
+    """Reverse the collected portion of sales through the refund clearing account."""
+    amount = Decimal(returned_doc.refund_amount).quantize(CENT)
+    if amount <= 0:
+        raise ValueError("قيمة مرتجع المبيعات يجب أن تكون موجبة")
+    returns = _account(
+        session, code="4200", name="مردودات ومسموحات المبيعات",
+        account_type="expense",
+    )
+    clearing = _account(
+        session, code="1090", name="مدفوعات المبيعات تحت التسوية",
+        account_type="asset",
+    )
+    return _post_once(
+        session, source_type="sale_return", source_id=returned_doc.id,
+        number=f"AUTO-RET-{returned_doc.id}",
+        description=f"قيد مرتجع المبيعات {returned_doc.number}",
+        entry_date=returned_doc.created_at,
+        lines=[
+            {"account_id": returns.id, "debit": amount},
+            {"account_id": clearing.id, "credit": amount},
+        ],
+    )
