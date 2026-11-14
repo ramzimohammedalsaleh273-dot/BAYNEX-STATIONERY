@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 from sqlalchemy import create_engine, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
@@ -74,5 +75,5 @@ def test_supplier_purchase_is_linked_to_supplier_subledger(session):
 def test_customer_code_is_unique_and_search_is_working(session):
     create_customer(session, code="c-002", name="عميل أول")
     assert [item.name for item in list_customers(session, search="عميل")] == ["عميل أول"]
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         create_customer(session, code="C-002", name="عميل مكرر")
