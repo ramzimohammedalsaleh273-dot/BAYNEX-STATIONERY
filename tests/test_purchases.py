@@ -6,10 +6,13 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import Product, Warehouse
-from baynex_stationery.services.purchases import (
-    create_purchase, create_supplier, list_purchases, post_purchase,
-)
 from baynex_stationery.services.inventory import get_stock_balance
+from baynex_stationery.services.purchases import (
+    create_purchase,
+    create_supplier,
+    list_purchases,
+    post_purchase,
+)
 
 
 @pytest.fixture
