@@ -7,8 +7,18 @@ from decimal import Decimal, InvalidOperation
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from baynex_stationery.db.models import Account, JournalEntry, JournalLine, TreasuryAccount, TreasuryVoucher
-from baynex_stationery.services.accounting import create_account, create_journal_entry, post_journal_entry
+from baynex_stationery.db.models import (
+    Account,
+    JournalEntry,
+    JournalLine,
+    TreasuryAccount,
+    TreasuryVoucher,
+)
+from baynex_stationery.services.accounting import (
+    create_account,
+    create_journal_entry,
+    post_journal_entry,
+)
 
 CENT = Decimal("0.01")
 TREASURY_KINDS = {"cash", "bank"}
