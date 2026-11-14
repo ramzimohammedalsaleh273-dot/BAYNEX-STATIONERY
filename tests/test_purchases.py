@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from baynex_stationery.db.base import Base
 from baynex_stationery.db.models import JournalEntry, Product, Warehouse
 from baynex_stationery.services.inventory import get_stock_balance
+from baynex_stationery.services.treasury import create_treasury_account
 from baynex_stationery.services.purchases import (
     create_purchase,
     create_supplier,
@@ -78,3 +79,30 @@ def test_purchase_rejects_overpayment(session):
             lines=[{"product_id": product.id, "quantity": "1", "unit_cost": "2.00"}],
             paid_amount="3.00",
         )
+
+def test_purchase_payment_uses_the_only_active_cashbox_ledger(session):
+    warehouse = Warehouse(code="CASH-PUR", name="مستودع", is_default=True)
+    product = Product(
+        sku="CASH-PUR-01", name="قلم", cost_price=Decimal("1.00"),
+        sale_price=Decimal("2.00"),
+    )
+    session.add_all([warehouse, product])
+    supplier = create_supplier(session, code="CASH-SUP", name="مورد")
+    cashbox = create_treasury_account(
+        session, code="PUR-CASH", name="صندوق المشتريات",
+        account_kind="cash", ledger_code="1002",
+    )
+    purchase = create_purchase(
+        session, number="PUR-CASH-001", supplier_id=supplier.id,
+        warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "2", "unit_cost": "3.00"}],
+        paid_amount="2.00", payment_method="cash",
+    )
+    post_purchase(session, purchase_id=purchase.id)
+    journal = session.scalar(select(JournalEntry).where(
+        JournalEntry.source_type == "purchase", JournalEntry.source_id == purchase.id,
+    ))
+    assert any(
+        line.account_id == cashbox.ledger_account_id and line.credit == Decimal("2.00")
+        for line in journal.lines
+    )
