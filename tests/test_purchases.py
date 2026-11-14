@@ -32,13 +32,15 @@ def test_purchase_draft_does_not_change_stock_and_post_receives_it(session):
     session.flush()
     purchase = create_purchase(
         session, number="PUR-1", supplier_id=supplier.id, warehouse_id=warehouse.id,
-        lines=[{"product_id": product.id, "quantity": "5", "unit_cost": "3.00"}],
+        lines=[{"product_id": product.id, "quantity": "5", "unit_cost": "3.00", "discount": "2.00"}],
         paid_amount="4.00",
     )
     assert get_stock_balance(session, product.id, warehouse.id) == Decimal("0.000")
     post_purchase(session, purchase_id=purchase.id)
     assert get_stock_balance(session, product.id, warehouse.id) == Decimal("5.000")
-    assert product.cost_price == Decimal("3.00")
+    assert product.cost_price == Decimal("2.60")
+    assert purchase.discount == Decimal("2.00")
+    assert purchase.total == Decimal("13.00")
     assert purchase.status == "posted"
     assert purchase.paid_amount == Decimal("4.00")
     assert len(list_purchases(session, status="posted")) == 1
