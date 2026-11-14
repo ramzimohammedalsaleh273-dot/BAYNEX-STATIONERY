@@ -10,7 +10,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from baynex_stationery.db.models import Account, JournalEntry
+from baynex_stationery.db.models import Account, JournalEntry, SaleItem
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.accounting import create_account, create_journal_entry, post_journal_entry
 
@@ -130,6 +130,13 @@ def post_sales_return_journal(session: Session, returned_doc) -> JournalEntry:
         session, code="4200", name="مردودات ومسموحات المبيعات",
         account_type="expense",
     )
+    returned_cost = Decimal("0.00")
+    for row in returned_doc.items:
+        original = session.get(SaleItem, row.sale_item_id)
+        if original is None:
+            raise ValueError("تعذر العثور على سطر فاتورة البيع المرتبط بالمرتجع")
+        returned_cost += Decimal(row.quantity) * Decimal(original.unit_cost_snapshot)
+    returned_cost = money(returned_cost)
     clearing = _account(
         session, code="1090", name="مدفوعات المبيعات تحت التسوية",
         account_type="asset",
@@ -142,5 +149,8 @@ def post_sales_return_journal(session: Session, returned_doc) -> JournalEntry:
         lines=[
             {"account_id": returns.id, "debit": amount},
             {"account_id": clearing.id, "credit": amount},
-        ],
+        ] + ([
+            {"account_id": _account(session, code="1200", name="مخزون البضاعة", account_type="asset").id, "debit": returned_cost},
+            {"account_id": _account(session, code="5100", name="تكلفة البضاعة المباعة", account_type="expense").id, "credit": returned_cost},
+        ] if returned_cost else []),
     )
