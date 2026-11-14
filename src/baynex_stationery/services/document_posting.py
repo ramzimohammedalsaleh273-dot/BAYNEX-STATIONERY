@@ -122,35 +122,55 @@ def post_purchase_invoice_journal(session: Session, purchase) -> JournalEntry:
     )
 
 def post_sales_return_journal(session: Session, returned_doc) -> JournalEntry:
-    """Reverse the collected portion of sales through the refund clearing account."""
+    """Reverse sales, output tax, and inventory cost for returned goods."""
     amount = Decimal(returned_doc.refund_amount).quantize(CENT)
     if amount <= 0:
         raise ValueError("قيمة مرتجع المبيعات يجب أن تكون موجبة")
-    returns = _account(
-        session, code="4200", name="مردودات ومسموحات المبيعات",
-        account_type="expense",
-    )
     returned_cost = Decimal("0.00")
+    returned_tax = Decimal("0.00")
     for row in returned_doc.items:
         original = session.get(SaleItem, row.sale_item_id)
         if original is None:
             raise ValueError("تعذر العثور على سطر فاتورة البيع المرتبط بالمرتجع")
+        quantity_ratio = Decimal(row.quantity) / Decimal(original.quantity)
         returned_cost += Decimal(row.quantity) * Decimal(original.unit_cost_snapshot)
+        returned_tax += Decimal(original.tax_amount) * quantity_ratio
     returned_cost = money(returned_cost)
+    returned_tax = money(returned_tax)
+    if returned_tax > amount:
+        raise ValueError("ضريبة المرتجع تتجاوز إجمالي المرتجع")
+
+    lines: list[dict] = []
+    net_returns = amount - returned_tax
+    if net_returns:
+        returns = _account(
+            session, code="4200", name="مردودات ومسموحات المبيعات",
+            account_type="expense",
+        )
+        lines.append({"account_id": returns.id, "debit": net_returns})
+    if returned_tax:
+        tax_due = _account(
+            session, code="2300", name="ضريبة مخرجات مستحقة",
+            account_type="liability",
+        )
+        lines.append({"account_id": tax_due.id, "debit": returned_tax})
     clearing = _account(
         session, code="1090", name="مدفوعات المبيعات تحت التسوية",
         account_type="asset",
     )
+    lines.append({"account_id": clearing.id, "credit": amount})
+    if returned_cost:
+        inventory = _account(
+            session, code="1200", name="مخزون البضاعة", account_type="asset",
+        )
+        cogs = _account(
+            session, code="5100", name="تكلفة البضاعة المباعة", account_type="expense",
+        )
+        lines.append({"account_id": inventory.id, "debit": returned_cost})
+        lines.append({"account_id": cogs.id, "credit": returned_cost})
     return _post_once(
         session, source_type="sale_return", source_id=returned_doc.id,
         number=f"AUTO-RET-{returned_doc.id}",
         description=f"قيد مرتجع المبيعات {returned_doc.number}",
-        entry_date=returned_doc.created_at,
-        lines=[
-            {"account_id": returns.id, "debit": amount},
-            {"account_id": clearing.id, "credit": amount},
-        ] + ([
-            {"account_id": _account(session, code="1200", name="مخزون البضاعة", account_type="asset").id, "debit": returned_cost},
-            {"account_id": _account(session, code="5100", name="تكلفة البضاعة المباعة", account_type="expense").id, "credit": returned_cost},
-        ] if returned_cost else []),
+        entry_date=returned_doc.created_at, lines=lines,
     )
