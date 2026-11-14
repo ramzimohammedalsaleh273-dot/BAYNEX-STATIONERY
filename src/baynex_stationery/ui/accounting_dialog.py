@@ -25,6 +25,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from baynex_stationery.db.session import SessionLocal
 from baynex_stationery.services.accounting import (
     create_account,
+    account_ledger,
     create_journal_entry,
     list_accounts,
     post_journal_entry,
@@ -77,6 +78,18 @@ class AccountingDialog(QDialog):
         balance_layout.addWidget(self.balance_table)
         root.addWidget(balance_box, 2)
 
+        ledger_box = QGroupBox("كشف حركة الحساب المحدد")
+        ledger_layout = QVBoxLayout(ledger_box)
+        self.ledger_table = QTableWidget(0, 6)
+        self.ledger_table.setHorizontalHeaderLabels(
+            ["التاريخ", "رقم القيد", "البيان", "مدين", "دائن", "الرصيد التراكمي"]
+        )
+        configure_data_table(self.ledger_table, row_height=32)
+        self.ledger_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        ledger_layout.addWidget(self.ledger_table)
+        root.addWidget(ledger_box, 2)
+        self.accounts_table.cellDoubleClicked.connect(self.show_account_ledger)
+
         self.add_account_button.clicked.connect(self.add_account)
         self.add_journal_button.clicked.connect(self.add_journal)
         self.refresh_button.clicked.connect(self.refresh_data)
@@ -108,6 +121,29 @@ class AccountingDialog(QDialog):
                 self.balance_table.setItem(row, column, QTableWidgetItem(str(value)))
         self.accounts_table.resizeColumnsToContents()
         self.balance_table.resizeColumnsToContents()
+
+    def show_account_ledger(self, row, _column):
+        code_item = self.accounts_table.item(row, 0)
+        if code_item is None:
+            return
+        account_code = code_item.text()
+        with SessionLocal() as session:
+            account = next((item for item in list_accounts(session, include_inactive=True)
+                            if item.code == account_code), None)
+            if account is None:
+                return
+            entries = account_ledger(session, account_id=account.id)
+        self.ledger_table.setRowCount(len(entries))
+        for index, item in enumerate(entries):
+            values = [
+                item["date"].strftime("%Y-%m-%d"),
+                item["number"], item["description"],
+                f'{item["debit"]:.2f}', f'{item["credit"]:.2f}',
+                f'{item["balance"]:.2f}',
+            ]
+            for column, value in enumerate(values):
+                self.ledger_table.setItem(index, column, QTableWidgetItem(str(value)))
+        self.ledger_table.resizeColumnsToContents()
 
     def add_account(self):
         code, ok = QInputDialog.getText(self, "حساب جديد", "رمز الحساب:")
