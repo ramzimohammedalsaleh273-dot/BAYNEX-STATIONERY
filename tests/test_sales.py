@@ -20,8 +20,8 @@ from baynex_stationery.services.inventory import (
     record_stock_movement,
 )
 from baynex_stationery.services.products import create_product
-from baynex_stationery.services.treasury import create_treasury_account
 from baynex_stationery.services.sales import create_sale, list_sales, post_sale
+from baynex_stationery.services.treasury import create_treasury_account
 
 
 @pytest.fixture
