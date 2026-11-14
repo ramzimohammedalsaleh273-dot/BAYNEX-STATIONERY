@@ -89,7 +89,7 @@ class Customer(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
-    name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
     phone: Mapped[str | None] = mapped_column(String(40), index=True)
     address: Mapped[str | None] = mapped_column(Text)
     tax_number: Mapped[str | None] = mapped_column(String(80))
