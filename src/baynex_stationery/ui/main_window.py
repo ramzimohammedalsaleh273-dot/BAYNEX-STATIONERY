@@ -298,11 +298,12 @@ class MainWindow(QMainWindow):
         self.movements_button = QPushButton("الحركات")
         self.sales_button = QPushButton("فاتورة مبيعات")
         self.pos_button = QPushButton("نقطة البيع POS")
+        self.purchases_button = QPushButton("المشتريات")
 
         action_buttons = (
             self.add_button, self.edit_button, self.deactivate_button,
             self.category_button, self.unit_button, self.refresh_button,
-            self.pos_button, self.add_warehouse_button, self.edit_warehouse_button,
+            self.pos_button, self.purchases_button, self.add_warehouse_button, self.edit_warehouse_button,
             self.deactivate_warehouse_button, self.receive_button, self.issue_button,
             self.transfer_button, self.count_button, self.movements_button, self.sales_button,
         )
@@ -326,6 +327,7 @@ class MainWindow(QMainWindow):
             catalog_toolbar.addWidget(button)
         catalog_toolbar.addWidget(self.sales_button)
         catalog_toolbar.addWidget(self.pos_button)
+        catalog_toolbar.addWidget(self.purchases_button)
         catalog_toolbar.addSeparator()
         catalog_toolbar.addWidget(self.search)
 
@@ -390,6 +392,9 @@ class MainWindow(QMainWindow):
         sales_action.triggered.connect(self.open_sales_invoice)
         pos_action = sales_menu.addAction("نقطة البيع POS")
         pos_action.triggered.connect(self.open_pos)
+        purchase_menu = self.menuBar().addMenu("المشتريات")
+        purchase_action = purchase_menu.addAction("الموردون وفواتير المشتريات")
+        purchase_action.triggered.connect(self.open_purchases)
         stock_menu = self.menuBar().addMenu("المخزون")
         for label, handler in (
             ("إدخال مخزون", self.receive_selected),
@@ -424,6 +429,7 @@ class MainWindow(QMainWindow):
         self.movements_button.clicked.connect(self.show_movements)
         self.sales_button.clicked.connect(self.open_sales_invoice)
         self.pos_button.clicked.connect(self.open_pos)
+        self.purchases_button.clicked.connect(self.open_purchases)
         self.search.textChanged.connect(self.refresh_products)
         self.warehouse.currentIndexChanged.connect(self.refresh_products)
         self._refresh_warehouses()
@@ -435,6 +441,13 @@ class MainWindow(QMainWindow):
         from baynex_stationery.ui.sales_dialog import SalesInvoiceDialog
 
         dialog = SalesInvoiceDialog(self)
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.refresh_products()
+
+    def open_purchases(self):
+        from baynex_stationery.ui.purchases_dialog import PurchasesDialog
+
+        dialog = PurchasesDialog(self)
         if dialog.exec() == QDialog.DialogCode.Accepted:
             self.refresh_products()
 
