@@ -83,12 +83,29 @@ class Warehouse(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
 
 
+class Customer(Base):
+    """Customer master record for receivables subledger."""
+    __tablename__ = "customers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    phone: Mapped[str | None] = mapped_column(String(40), index=True)
+    address: Mapped[str | None] = mapped_column(Text)
+    tax_number: Mapped[str | None] = mapped_column(String(80))
+    notes: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
 class Sale(Base):
     __tablename__ = "sales"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id", ondelete="RESTRICT"))
+    customer: Mapped[Customer | None] = relationship()
     customer_name: Mapped[str | None] = mapped_column(String(160))
     customer_phone: Mapped[str | None] = mapped_column(String(40))
     invoice_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
@@ -358,11 +375,15 @@ class JournalLine(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     entry_id: Mapped[int] = mapped_column(ForeignKey("journal_entries.id", ondelete="RESTRICT"), nullable=False)
     account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    customer_id: Mapped[int | None] = mapped_column(ForeignKey("customers.id", ondelete="RESTRICT"))
+    supplier_id: Mapped[int | None] = mapped_column(ForeignKey("suppliers.id", ondelete="RESTRICT"))
     description: Mapped[str | None] = mapped_column(String(240))
     debit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     credit: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
     entry: Mapped[JournalEntry] = relationship(back_populates="lines")
     account: Mapped[Account] = relationship()
+    customer: Mapped[Customer | None] = relationship()
+    supplier: Mapped[Supplier | None] = relationship()
 
 
 class TreasuryAccount(Base):
