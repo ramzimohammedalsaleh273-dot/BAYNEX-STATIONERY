@@ -248,3 +248,69 @@ def _prevent_stock_movement_update(_mapper, _connection, _target) -> None:
 @event.listens_for(StockMovement, "before_delete")
 def _prevent_stock_movement_delete(_mapper, _connection, _target) -> None:
     raise ValueError("حركة المخزون المرحلة غير قابلة للحذف")
+
+
+class Supplier(Base):
+    """Supplier master record; historical invoices retain their own snapshots."""
+    __tablename__ = "suppliers"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(180), nullable=False, index=True)
+    phone: Mapped[str | None] = mapped_column(String(40))
+    address: Mapped[str | None] = mapped_column(Text)
+    tax_number: Mapped[str | None] = mapped_column(String(80))
+    notes: Mapped[str | None] = mapped_column(Text)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+
+class Purchase(Base):
+    """Supplier invoice. Stock is changed only when a draft is posted."""
+    __tablename__ = "purchases"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=False)
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="draft", nullable=False)
+    invoice_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    supplier_invoice_number: Mapped[str | None] = mapped_column(String(80))
+    subtotal: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    discount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    paid_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    items: Mapped[list[PurchaseItem]] = relationship(back_populates="purchase", cascade="all, delete-orphan")
+    payments: Mapped[list[PurchasePayment]] = relationship(back_populates="purchase", cascade="all, delete-orphan")
+
+
+class PurchaseItem(Base):
+    __tablename__ = "purchase_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    purchase_id: Mapped[int] = mapped_column(ForeignKey("purchases.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
+    product_name: Mapped[str] = mapped_column(String(200), nullable=False)
+    product_sku: Mapped[str] = mapped_column(String(64), default="", nullable=False)
+    unit_name: Mapped[str] = mapped_column(String(32), default="قطعة", nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    unit_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    discount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    line_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    purchase: Mapped[Purchase] = relationship(back_populates="items")
+
+
+class PurchasePayment(Base):
+    __tablename__ = "purchase_payments"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    purchase_id: Mapped[int] = mapped_column(ForeignKey("purchases.id", ondelete="RESTRICT"), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    method: Mapped[str] = mapped_column(String(30), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    purchase: Mapped[Purchase] = relationship(back_populates="payments")
