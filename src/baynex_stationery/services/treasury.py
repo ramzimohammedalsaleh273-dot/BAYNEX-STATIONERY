@@ -27,7 +27,7 @@ def _amount(value) -> Decimal:
 
 def create_treasury_account(
     session: Session, *, code: str, name: str, account_kind: str,
-    ledger_code: str, opening_balance: Decimal | str | int = Decimal("0"),
+    ledger_code: str, opening_balance: Decimal | str | int = Decimal(0),
 ) -> TreasuryAccount:
     clean_code, clean_name = code.strip().upper(), name.strip()
     if not clean_code or len(clean_code) > 32:
