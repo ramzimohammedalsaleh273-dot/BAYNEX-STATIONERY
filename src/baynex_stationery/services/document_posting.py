@@ -12,7 +12,11 @@ from sqlalchemy.orm import Session
 
 from baynex_stationery.db.models import Account, JournalEntry, SaleItem
 from baynex_stationery.domain.pricing import money
-from baynex_stationery.services.accounting import create_account, create_journal_entry, post_journal_entry
+from baynex_stationery.services.accounting import (
+    create_account,
+    create_journal_entry,
+    post_journal_entry,
+)
 
 CENT = Decimal("0.01")
 
