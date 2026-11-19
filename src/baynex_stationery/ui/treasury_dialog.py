@@ -237,6 +237,8 @@ class TreasuryDialog(QDialog):
             if not value.is_finite() or value <= 0 or value != value.quantize(Decimal("0.01")):
                 raise ValueError("المبلغ يجب أن يكون موجباً وبخانتين عشريتين")
             kind = self.voucher_type.currentData()
+            if not self.voucher_number.text().strip():
+                raise ValueError("رقم السند مطلوب")
             source_id = self.source_account.currentData()
             destination_id = self.destination_account.currentData()
             counter_id = self.counter_account.currentData()
