@@ -311,7 +311,8 @@ class MainWindow(QMainWindow):
         )
         for button in action_buttons:
             button.setMinimumHeight(29)
-            button.setMinimumWidth(68)
+            button.setMinimumWidth(58)
+            button.setMaximumWidth(142)
         self.add_button.setObjectName("primaryAction")
         self.receive_button.setObjectName("primaryAction")
         self.warehouse.setMinimumWidth(155)
@@ -345,6 +346,7 @@ class MainWindow(QMainWindow):
         ):
             stock_toolbar.addWidget(widget)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, catalog_toolbar)
+        self.addToolBarBreak(Qt.ToolBarArea.TopToolBarArea)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, stock_toolbar)
 
         self.table = QTableWidget(0, 9)
