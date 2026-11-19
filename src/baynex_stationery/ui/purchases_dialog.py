@@ -349,7 +349,7 @@ class PurchasesDialog(QDialog):
                 amount = returned.amount
             QMessageBox.information(
                 self, "تم ترحيل مرتجع المشتريات",
-                f"رقم المرتجع: {return_number}\\nالقيمة: {amount:.2f}\\n"
+                f"رقم المرتجع: {return_number}\nالقيمة: {amount:.2f}\n"
                 "تم تخفيض المخزون وتسجيل إشعار دائن للمورد والقيد المحاسبي.",
             )
             self.refresh_history()
