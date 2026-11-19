@@ -213,7 +213,6 @@ def create_purchase_return(
     result_items: list[PurchaseReturnItem] = []
     total_amount = Decimal("0.00")
     total_tax = Decimal("0.00")
-    total_inventory_cost = Decimal("0.00")
 
     for index, row in enumerate(lines, 1):
         try:
@@ -245,7 +244,6 @@ def create_purchase_return(
         ))
         total_amount += line_total
         total_tax += tax_amount
-        total_inventory_cost += inventory_cost
 
     total_amount = money(total_amount)
     total_tax = money(total_tax)
