@@ -335,6 +335,39 @@ class PurchasePayment(Base):
     purchase: Mapped[Purchase] = relationship(back_populates="payments")
 
 
+class PurchaseReturn(Base):
+    """Posted supplier credit note linked to an original purchase invoice."""
+    __tablename__ = "purchase_returns"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    number: Mapped[str] = mapped_column(String(40), unique=True, nullable=False)
+    purchase_id: Mapped[int] = mapped_column(ForeignKey("purchases.id", ondelete="RESTRICT"), nullable=False, index=True)
+    supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id", ondelete="RESTRICT"), nullable=False)
+    warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id", ondelete="RESTRICT"), nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="posted", nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utc_now, nullable=False)
+    purchase: Mapped[Purchase] = relationship()
+    supplier: Mapped[Supplier] = relationship()
+    items: Mapped[list[PurchaseReturnItem]] = relationship(back_populates="purchase_return", cascade="all, delete-orphan")
+
+
+class PurchaseReturnItem(Base):
+    __tablename__ = "purchase_return_items"
+    __table_args__ = (UniqueConstraint("purchase_return_id", "purchase_item_id", name="uq_purchase_return_item"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    purchase_return_id: Mapped[int] = mapped_column(ForeignKey("purchase_returns.id", ondelete="RESTRICT"), nullable=False)
+    purchase_item_id: Mapped[int] = mapped_column(ForeignKey("purchase_items.id", ondelete="RESTRICT"), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="RESTRICT"), nullable=False)
+    quantity: Mapped[Decimal] = mapped_column(Numeric(14, 3), nullable=False)
+    line_total: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
+    tax_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2), default=Decimal(0), nullable=False)
+    purchase_return: Mapped[PurchaseReturn] = relationship(back_populates="items")
+
+
 class Account(Base):
     """Chart-of-accounts record."""
     __tablename__ = "accounts"
