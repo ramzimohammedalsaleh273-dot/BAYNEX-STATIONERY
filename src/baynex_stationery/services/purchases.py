@@ -18,7 +18,7 @@ from baynex_stationery.db.models import (
     Warehouse,
 )
 from baynex_stationery.domain.pricing import money
-from baynex_stationery.services.document_posting import post_purchase_invoice_journal, post_purchase_return_journal
+from baynex_stationery.services.document_posting import (\n    post_purchase_invoice_journal,\n    post_purchase_return_journal,\n)
 from baynex_stationery.services.inventory import get_stock_balance, record_stock_movement
 
 CENT = Decimal("0.01")
@@ -223,7 +223,7 @@ def create_purchase_return(
         original = purchase_items.get(purchase_item_id)
         if original is None:
             raise ValueError("سطر المرتجع لا ينتمي إلى فاتورة المشتريات المحددة")
-        remaining = Decimal(original.quantity) - returned.get(purchase_item_id, Decimal("0"))
+        remaining = Decimal(original.quantity) - returned.get(purchase_item_id, Decimal(0))
         if quantity > remaining:
             raise ValueError(f"كمية المرتجع تتجاوز الكمية المتبقية للصنف {original.product_name}")
         line_total = money(Decimal(original.line_total) * quantity / Decimal(original.quantity))
