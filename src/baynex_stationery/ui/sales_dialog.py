@@ -65,7 +65,6 @@ class SalesInvoiceDialog(QDialog):
         self.customer = QLineEdit("عميل نقدي")
         self.phone = QLineEdit()
         self.customer_account = QComboBox()
-        configure_searchable_combo(self.customer_account)
         self.customer_account.addItem("عميل نقدي / بدون حساب", None)
         for customer_record in self.customers:
             self.customer_account.addItem(
