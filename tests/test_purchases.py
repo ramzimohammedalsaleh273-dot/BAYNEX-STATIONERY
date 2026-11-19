@@ -200,3 +200,33 @@ def test_purchase_return_posts_inventory_valuation_difference(session):
     assert variance[0].credit == Decimal("1.20")
     assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("5.20")
     assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("5.20")
+
+
+
+def test_partial_purchase_returns_allocate_rounding_remainder_exactly(session):
+    warehouse = Warehouse(code="RET-ROUND", name="مستودع التقريب", is_default=True)
+    product = Product(
+        sku="PUR-RET-ROUND", name="صنف تقريبي", cost_price=Decimal("0.04"),
+        sale_price=Decimal("0.10"),
+    )
+    session.add_all([warehouse, product])
+    supplier = create_supplier(session, code="RET-ROUND-SUP", name="مورد التقريب")
+    session.flush()
+    purchase = create_purchase(
+        session, number="PUR-ROUND-BASE", supplier_id=supplier.id,
+        warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "3", "unit_cost": "0.04", "discount": "0.02"}],
+    )
+    post_purchase(session, purchase_id=purchase.id)
+
+    amounts = []
+    for index in range(1, 4):
+        returned = create_purchase_return(
+            session, number=f"PUR-ROUND-RET-{index}", purchase_id=purchase.id,
+            lines=[{"purchase_item_id": purchase.items[0].id, "quantity": "1"}],
+        )
+        amounts.append(returned.amount)
+
+    assert amounts == [Decimal("0.03"), Decimal("0.03"), Decimal("0.04")]
+    assert sum(amounts, Decimal("0.00")) == purchase.total
+    assert get_stock_balance(session, product.id, warehouse.id) == Decimal("0.000")
