@@ -19,6 +19,8 @@ def test_fresh_database_migrates_to_head(tmp_path):
             "inventory_transfer_lines", "sale_returns", "sale_return_items",
             "cashier_events", "customers", "suppliers", "purchases", "purchase_items", "purchase_payments", "accounts", "journal_entries", "journal_lines", "treasury_accounts", "treasury_vouchers", "purchase_returns", "purchase_return_items",
         }.issubset(tables)
+        return_item_columns = {column["name"] for column in inspector.get_columns("purchase_return_items")}
+        assert "inventory_cost" in return_item_columns
         product_columns = {column["name"] for column in inspector.get_columns("products")}
         sale_item_columns = {column["name"] for column in inspector.get_columns("sale_items")}
         sale_columns = {column["name"] for column in inspector.get_columns("sales")}
@@ -30,7 +32,7 @@ def test_fresh_database_migrates_to_head(tmp_path):
         assert "wholesale_price" in product_columns
         with engine.connect() as connection:
             assert connection.scalar(text("SELECT COUNT(*) FROM units")) >= 7
-            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0012_purchase_returns"
+            assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0013_purchase_return_inventory_cost"
             assert connection.scalar(text("SELECT COUNT(*) FROM warehouses WHERE is_default=1")) == 1
     finally:
         engine.dispose()
