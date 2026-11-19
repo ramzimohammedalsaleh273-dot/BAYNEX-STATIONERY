@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from baynex_stationery.db.base import Base
+from baynex_stationery.db.models import Customer, Supplier
 from baynex_stationery.services.accounting import (
     account_ledger,
     create_account,
@@ -95,3 +96,32 @@ def test_draft_journals_do_not_appear_in_ledger_or_trial_balance(session):
     balances = {row["code"]: row for row in trial_balance(session)}
     assert balances["1000"]["debit"] == Decimal("0.00")
     assert account_ledger(session, account_id=cash.id) == []
+
+
+
+def test_party_subledgers_accept_both_debit_and_credit_movements(session):
+    cash, capital = make_accounts(session)
+    payable = create_account(
+        session, code="2100", name="الموردون", account_type="liability",
+    )
+    receivable = create_account(
+        session, code="1100", name="العملاء", account_type="asset",
+    )
+    supplier = Supplier(code="SUP-REV", name="مورد")
+    customer = Customer(code="CUS-REV", name="عميل")
+    session.add_all([supplier, customer])
+    session.flush()
+
+    entry = create_journal_entry(
+        session, number="JE-PARTY-REV", description="عكس حركة دفاتر الأطراف",
+        lines=[
+            {"account_id": payable.id, "debit": "25.00", "supplier_id": supplier.id},
+            {"account_id": receivable.id, "credit": "25.00", "customer_id": customer.id},
+        ],
+    )
+    post_journal_entry(session, entry_id=entry.id)
+    assert entry.status == "posted"
+    assert entry.lines[0].supplier_id == supplier.id
+    assert entry.lines[0].debit == Decimal("25.00")
+    assert entry.lines[1].customer_id == customer.id
+    assert entry.lines[1].credit == Decimal("25.00")
