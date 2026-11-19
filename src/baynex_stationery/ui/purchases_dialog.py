@@ -34,7 +34,7 @@ from baynex_stationery.services.purchases import (
     post_purchase,
 )
 from baynex_stationery.ui.components import (
-    configure_data_table, create_page_heading, fit_window_to_screen,
+    configure_data_table, configure_searchable_combo, create_page_heading, fit_window_to_screen,
 )
 
 
@@ -71,6 +71,7 @@ class PurchasesDialog(QDialog):
         supplier_form = QFormLayout(supplier_box)
         supplier_row = QHBoxLayout()
         self.supplier = QComboBox()
+        configure_searchable_combo(self.supplier)
         self.supplier.setMinimumWidth(320)
         self.add_supplier_button = QPushButton("مورد جديد")
         supplier_row.addWidget(self.supplier, 1)
@@ -102,8 +103,7 @@ class PurchasesDialog(QDialog):
         entry = QGroupBox("إضافة صنف إلى الفاتورة")
         entry_row = QHBoxLayout(entry)
         self.product = QComboBox()
-        self.product.setEditable(True)
-        self.product.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        configure_searchable_combo(self.product)
         self.product.setMinimumWidth(330)
         self.product.addItem("اختر الصنف أو ابحث بالاسم والرمز", None)
         for item in self.products:
@@ -202,8 +202,8 @@ class PurchasesDialog(QDialog):
             raise ValueError(f"{label} يجب أن يكون رقماً موجباً")
         return number
 
-    def refresh_suppliers(self):
-        selected = self.supplier.currentData()
+    def refresh_suppliers(self, selected_id=None):
+        selected = selected_id if selected_id is not None else self.supplier.currentData()
         with SessionLocal() as session:
             self.suppliers = list_suppliers(session)
         self.supplier.clear()
@@ -225,8 +225,9 @@ class PurchasesDialog(QDialog):
             return
         try:
             with SessionLocal.begin() as session:
-                create_supplier(session, code=code, name=name, phone=phone)
-            self.refresh_suppliers()
+                supplier = create_supplier(session, code=code, name=name, phone=phone)
+                supplier_id = supplier.id
+            self.refresh_suppliers(supplier_id)
             QMessageBox.information(self, "الموردون", "تم حفظ المورد")
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر حفظ المورد", str(exc))
