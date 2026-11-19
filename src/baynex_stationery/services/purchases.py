@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from baynex_stationery.db.models import (
@@ -12,11 +12,13 @@ from baynex_stationery.db.models import (
     Purchase,
     PurchaseItem,
     PurchasePayment,
+    PurchaseReturn,
+    PurchaseReturnItem,
     Supplier,
     Warehouse,
 )
 from baynex_stationery.domain.pricing import money
-from baynex_stationery.services.document_posting import post_purchase_invoice_journal
+from baynex_stationery.services.document_posting import post_purchase_invoice_journal, post_purchase_return_journal
 from baynex_stationery.services.inventory import get_stock_balance, record_stock_movement
 
 CENT = Decimal("0.01")
@@ -176,4 +178,98 @@ def list_purchases(
         statement = statement.where(Purchase.supplier_id == supplier_id)
     if status is not None:
         statement = statement.where(Purchase.status == status)
+    return list(session.scalars(statement).unique())
+
+
+def create_purchase_return(
+    session: Session, *, number: str, purchase_id: int,
+    lines: list[dict], notes: str | None = None,
+) -> PurchaseReturn:
+    """Post a supplier credit note, issue returned stock, and reverse its invoice value."""
+    clean_number = number.strip()
+    if not clean_number or len(clean_number) > 40:
+        raise ValueError("رقم مرتجع المشتريات مطلوب ولا يتجاوز 40 حرفاً")
+    purchase = session.scalar(
+        select(Purchase).options(joinedload(Purchase.items))
+        .where(Purchase.id == purchase_id).with_for_update()
+    )
+    if purchase is None or purchase.status != "posted":
+        raise ValueError("لا يمكن إرجاع أصناف إلا من فاتورة مشتريات مرحلة")
+    if not lines:
+        raise ValueError("حدد صنفاً واحداً على الأقل للمرتجع")
+
+    prior_rows = session.execute(
+        select(PurchaseReturnItem.purchase_item_id, func.coalesce(func.sum(PurchaseReturnItem.quantity), 0))
+        .join(PurchaseReturn, PurchaseReturn.id == PurchaseReturnItem.purchase_return_id)
+        .where(PurchaseReturn.purchase_id == purchase_id, PurchaseReturn.status == "posted")
+        .group_by(PurchaseReturnItem.purchase_item_id)
+    ).all()
+    returned = {int(item_id): Decimal(str(quantity)) for item_id, quantity in prior_rows}
+    purchase_items = {item.id: item for item in purchase.items}
+    seen: set[int] = set()
+    result_items: list[PurchaseReturnItem] = []
+    total_amount = Decimal("0.00")
+    total_tax = Decimal("0.00")
+
+    for index, row in enumerate(lines, 1):
+        try:
+            purchase_item_id = int(row["purchase_item_id"])
+            quantity = _amount(row["quantity"], f"كمية مرتجع السطر {index}", QTY, minimum=QTY)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"بيانات مرتجع المشتريات في السطر {index} غير صالحة") from exc
+        if purchase_item_id in seen:
+            raise ValueError("اجمع كمية الصنف الواحد في سطر واحد")
+        seen.add(purchase_item_id)
+        original = purchase_items.get(purchase_item_id)
+        if original is None:
+            raise ValueError("سطر المرتجع لا ينتمي إلى فاتورة المشتريات المحددة")
+        remaining = Decimal(original.quantity) - returned.get(purchase_item_id, Decimal("0"))
+        if quantity > remaining:
+            raise ValueError(f"كمية المرتجع تتجاوز الكمية المتبقية للصنف {original.product_name}")
+        line_total = money(Decimal(original.line_total) * quantity / Decimal(original.quantity))
+        tax_amount = money(Decimal(original.tax_amount) * quantity / Decimal(original.quantity))
+        result_items.append(PurchaseReturnItem(
+            purchase_item_id=original.id, product_id=original.product_id,
+            quantity=quantity, line_total=line_total, tax_amount=tax_amount,
+        ))
+        total_amount += line_total
+        total_tax += tax_amount
+
+    total_amount = money(total_amount)
+    total_tax = money(total_tax)
+    if total_amount <= 0:
+        raise ValueError("قيمة مرتجع المشتريات يجب أن تكون موجبة")
+    returned_doc = PurchaseReturn(
+        number=clean_number, purchase_id=purchase.id, supplier_id=purchase.supplier_id,
+        warehouse_id=purchase.warehouse_id, status="posted",
+        amount=total_amount, tax_amount=total_tax,
+        notes=notes.strip() if notes else None,
+    )
+    returned_doc.items.extend(result_items)
+    session.add(returned_doc)
+    session.flush()
+
+    for item in result_items:
+        record_stock_movement(
+            session, product_id=item.product_id, warehouse_id=purchase.warehouse_id,
+            quantity_delta=-item.quantity, movement_type="issue",
+            note=f"مرتجع مشتريات {returned_doc.number}",
+            reference_type="purchase_return", reference_id=returned_doc.id,
+        )
+    post_purchase_return_journal(session, returned_doc)
+    session.flush()
+    return returned_doc
+
+
+def list_purchase_returns(
+    session: Session, *, purchase_id: int | None = None, limit: int = 500,
+) -> list[PurchaseReturn]:
+    statement = (
+        select(PurchaseReturn)
+        .options(joinedload(PurchaseReturn.supplier), joinedload(PurchaseReturn.items))
+        .order_by(PurchaseReturn.created_at.desc(), PurchaseReturn.id.desc())
+        .limit(max(1, min(int(limit), 5000)))
+    )
+    if purchase_id is not None:
+        statement = statement.where(PurchaseReturn.purchase_id == purchase_id)
     return list(session.scalars(statement).unique())
