@@ -202,12 +202,24 @@ def create_purchase_return(
         raise ValueError("حدد صنفاً واحداً على الأقل للمرتجع")
 
     prior_rows = session.execute(
-        select(PurchaseReturnItem.purchase_item_id, func.coalesce(func.sum(PurchaseReturnItem.quantity), 0))
+        select(
+            PurchaseReturnItem.purchase_item_id,
+            func.coalesce(func.sum(PurchaseReturnItem.quantity), 0),
+            func.coalesce(func.sum(PurchaseReturnItem.line_total), 0),
+            func.coalesce(func.sum(PurchaseReturnItem.tax_amount), 0),
+        )
         .join(PurchaseReturn, PurchaseReturn.id == PurchaseReturnItem.purchase_return_id)
         .where(PurchaseReturn.purchase_id == purchase_id, PurchaseReturn.status == "posted")
         .group_by(PurchaseReturnItem.purchase_item_id)
     ).all()
-    returned = {int(item_id): Decimal(str(quantity)) for item_id, quantity in prior_rows}
+    returned = {
+        int(item_id): {
+            "quantity": Decimal(str(quantity)),
+            "line_total": Decimal(str(line_total)),
+            "tax_amount": Decimal(str(tax_amount)),
+        }
+        for item_id, quantity, line_total, tax_amount in prior_rows
+    }
     purchase_items = {item.id: item for item in purchase.items}
     seen: set[int] = set()
     result_items: list[PurchaseReturnItem] = []
@@ -226,11 +238,21 @@ def create_purchase_return(
         original = purchase_items.get(purchase_item_id)
         if original is None:
             raise ValueError("سطر المرتجع لا ينتمي إلى فاتورة المشتريات المحددة")
-        remaining = Decimal(original.quantity) - returned.get(purchase_item_id, Decimal(0))
+        prior = returned.get(purchase_item_id, {})
+        returned_quantity = prior.get("quantity", Decimal(0))
+        remaining = Decimal(original.quantity) - returned_quantity
         if quantity > remaining:
             raise ValueError(f"كمية المرتجع تتجاوز الكمية المتبقية للصنف {original.product_name}")
-        line_total = money(Decimal(original.line_total) * quantity / Decimal(original.quantity))
-        tax_amount = money(Decimal(original.tax_amount) * quantity / Decimal(original.quantity))
+        remaining_line_total = Decimal(original.line_total) - prior.get("line_total", Decimal(0))
+        remaining_tax = Decimal(original.tax_amount) - prior.get("tax_amount", Decimal(0))
+        if quantity == remaining:
+            # Allocate any rounding remainder to the final return so all partial
+            # returns sum exactly to the source invoice line and tax.
+            line_total = money(remaining_line_total)
+            tax_amount = money(remaining_tax)
+        else:
+            line_total = money(Decimal(original.line_total) * quantity / Decimal(original.quantity))
+            tax_amount = money(Decimal(original.tax_amount) * quantity / Decimal(original.quantity))
         product = session.scalar(
             select(Product).where(Product.id == original.product_id).with_for_update()
         )
