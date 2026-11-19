@@ -14,7 +14,7 @@ from baynex_stationery.services.inventory import get_stock_balance, record_stock
 
 CENT = Decimal("0.01")
 QTY = Decimal("0.001")
-PAYMENT_METHODS = {"cash", "card", "transfer", "credit"}
+PAYMENT_METHODS = {"cash", "card", "transfer", "credit", "mixed"}
 
 
 def _decimal(value, label: str, *, places: Decimal, minimum: Decimal = Decimal(0)) -> Decimal:
@@ -175,9 +175,14 @@ def _post_draft(session: Session, sale_id: int) -> Sale:
             reference_type="sale",
             reference_id=sale.id,
         )
-    if sale.paid_amount > 0:
-        session.add(Payment(
-            sale_id=sale.id,
+    payment_total = sum((Decimal(payment.amount) for payment in sale.payments), Decimal("0.00"))
+    if sale.payments:
+        if money(payment_total) != money(Decimal(sale.paid_amount)):
+            raise ValueError("مجموع وسائل التحصيل لا يساوي المبلغ المدفوع في الفاتورة")
+    elif sale.paid_amount > 0:
+        if sale.payment_method == "mixed":
+            raise ValueError("حدد تفاصيل وسائل التحصيل المجزأ قبل ترحيل الفاتورة")
+        sale.payments.append(Payment(
             amount=sale.paid_amount,
             method=sale.payment_method,
         ))
