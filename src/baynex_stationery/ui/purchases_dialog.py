@@ -36,6 +36,13 @@ from baynex_stationery.services.purchases import (
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 
 
+def calculate_payment_balance(total: Decimal, paid: Decimal) -> tuple[Decimal, Decimal]:
+    """Return non-negative remaining balance and any invalid overpayment amount."""
+    remaining = max(Decimal("0.00"), total - paid).quantize(Decimal("0.01"))
+    overpayment = max(Decimal("0.00"), paid - total).quantize(Decimal("0.01"))
+    return remaining, overpayment
+
+
 class PurchasesDialog(QDialog):
     """Create and post supplier invoices; posted receipts enter the stock ledger."""
 
@@ -134,10 +141,15 @@ class PurchasesDialog(QDialog):
         self.remaining = QLabel("0.00")
         for label, value in (("الإجمالي:", self.subtotal), ("الصافي:", self.total), ("المتبقي:", self.remaining)):
             totals.addWidget(QLabel(label))
+            value.setObjectName("metricValue")
             value.setMinimumWidth(110)
             value.setAlignment(Qt.AlignmentFlag.AlignCenter)
             totals.addWidget(value)
         root.addLayout(totals)
+        self.payment_hint = QLabel(" ")
+        self.payment_hint.setObjectName("mutedText")
+        self.payment_hint.setWordWrap(True)
+        root.addWidget(self.payment_hint)
 
         history_box = QGroupBox("سجل فواتير المشتريات")
         history_layout = QVBoxLayout(history_box)
@@ -273,7 +285,17 @@ class PurchasesDialog(QDialog):
             paid = subtotal + Decimal(1)
         self.subtotal.setText(f"{subtotal:.2f}")
         self.total.setText(f"{subtotal:.2f}")
-        self.remaining.setText(f"{subtotal - paid:.2f}")
+        remaining, overpayment = calculate_payment_balance(subtotal, paid)
+        self.remaining.setText(f"{remaining:.2f}")
+        if overpayment:
+            self.payment_hint.setText(
+                f"تنبيه: المبلغ المدفوع يتجاوز إجمالي الفاتورة بمقدار {overpayment:.2f}. "
+                "خفّض مبلغ الدفع قبل الترحيل؛ لا يُسجّل الفرق كسلفة للمورد."
+            )
+            self.payment_hint.setStyleSheet("color: #B42318; font-weight: 700;")
+        else:
+            self.payment_hint.setText(" ")
+            self.payment_hint.setStyleSheet("")
         self.post_button.setEnabled(bool(self.table.rowCount()) and paid <= subtotal)
 
     def save_purchase(self):
