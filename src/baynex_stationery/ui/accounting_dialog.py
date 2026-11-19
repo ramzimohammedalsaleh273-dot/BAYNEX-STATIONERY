@@ -31,7 +31,7 @@ from baynex_stationery.services.accounting import (
     post_journal_entry,
     trial_balance,
 )
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
 
 
 class AccountingDialog(QDialog):
@@ -39,7 +39,7 @@ class AccountingDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("الحسابات والقيود اليومية | BAYNEX")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1120, 720)
+        fit_window_to_screen(self, 1120, 720, min_width=820, min_height=560)
 
         root = QVBoxLayout(self)
         root.addWidget(create_page_heading(

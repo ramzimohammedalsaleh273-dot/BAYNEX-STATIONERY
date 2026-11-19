@@ -33,7 +33,7 @@ from baynex_stationery.services.purchases import (
     list_suppliers,
     post_purchase,
 )
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
 
 
 def calculate_payment_balance(total: Decimal, paid: Decimal) -> tuple[Decimal, Decimal]:
@@ -50,7 +50,7 @@ class PurchasesDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("الموردون وفواتير المشتريات | BAYNEX")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1180, 760)
+        fit_window_to_screen(self, 1180, 760, min_width=860, min_height=600)
         with SessionLocal.begin() as session:
             ensure_default_warehouse(session)
             self.products = list_products(session)

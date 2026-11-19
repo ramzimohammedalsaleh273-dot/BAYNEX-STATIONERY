@@ -56,7 +56,7 @@ from baynex_stationery.services.products import (
     set_product_active,
     update_product,
 )
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
 
 
 class ProductDialog(QDialog):
@@ -119,7 +119,7 @@ class ProductDialog(QDialog):
         layout.addWidget(pricing_group)
         layout.addWidget(classification_group)
         layout.addWidget(buttons)
-        self.setMinimumWidth(540)
+        fit_window_to_screen(self, 720, 700, min_width=540, min_height=480)
 
     @staticmethod
     def _select_data(combo, value):
@@ -154,7 +154,7 @@ class InventoryCountDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("جرد المستودع")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(760, 560)
+        fit_window_to_screen(self, 760, 560, min_width=640, min_height=420)
         self.table = QTableWidget(len(balances), 3)
         self.table.setHorizontalHeaderLabels(["اسم الصنف", "الرصيد الدفتري", "الكمية الفعلية"])
         configure_data_table(self.table, stretch_last=True, row_height=40)
@@ -216,7 +216,7 @@ class InventoryMovementsDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("سجل حركات المخزون")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(900, 560)
+        fit_window_to_screen(self, 900, 560, min_width=680, min_height=420)
 
         self.table = QTableWidget(len(movements), 4)
         self.table.setHorizontalHeaderLabels(
@@ -263,7 +263,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("BAYNEX STATIONERY | نظام القرطاسية")
-        self.resize(1280, 800)
+        fit_window_to_screen(self, 1280, 800, min_width=960, min_height=600)
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
 
         root = QWidget()

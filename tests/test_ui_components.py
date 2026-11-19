@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget, QToolBar
 
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
 from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
 from baynex_stationery.ui.purchases_dialog import calculate_payment_balance
 
@@ -130,3 +130,15 @@ def test_main_window_uses_two_compact_toolbars_and_preserves_actions(monkeypatch
         "ملف", "الأصناف", "المبيعات", "المشتريات", "الحسابات", "الصناديق والبنوك", "المخزون", "مساعدة"
     ]
     window.close()
+
+
+def test_window_geometry_is_clamped_to_available_screen(qapp):
+    from PySide6.QtWidgets import QDialog
+
+    dialog = QDialog()
+    fit_window_to_screen(dialog, 1600, 1000, min_width=1000, min_height=700)
+    assert dialog.width() > 0
+    assert dialog.height() > 0
+    assert dialog.minimumWidth() <= dialog.width()
+    assert dialog.minimumHeight() <= dialog.height()
+    dialog.close()

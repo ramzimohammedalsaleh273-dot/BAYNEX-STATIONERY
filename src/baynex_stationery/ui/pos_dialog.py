@@ -59,7 +59,7 @@ class POSPaymentDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("الدفع وإنهاء البيع")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.setMinimumWidth(430)
+        fit_window_to_screen(self, 520, 360, min_width=430, min_height=280)
         self.total = total
         self.method = QComboBox()
         for label, value in (("نقدي", "cash"), ("شبكة / بطاقة", "card"),
@@ -927,7 +927,7 @@ class POSDialog(QDialog):
         dialog = QDialog(self)
         dialog.setWindowTitle("سجل عمليات الكاشير")
         dialog.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        dialog.resize(850, 480)
+        fit_window_to_screen(dialog, 850, 480, min_width=680, min_height=380)
         table = QTableWidget(0, 5)
         table.setHorizontalHeaderLabels(["التاريخ", "العملية", "رقم المستند", "المبلغ", "التفاصيل"])
         with SessionLocal() as session:

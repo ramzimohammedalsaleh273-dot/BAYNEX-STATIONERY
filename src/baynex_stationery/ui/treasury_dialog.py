@@ -32,7 +32,7 @@ from baynex_stationery.services.treasury import (
     treasury_balance,
     treasury_summary,
 )
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
 
 
 class TreasuryDialog(QDialog):
@@ -40,7 +40,7 @@ class TreasuryDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("الصناديق والبنوك والسندات | BAYNEX")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1180, 760)
+        fit_window_to_screen(self, 1180, 760, min_width=860, min_height=600)
         root = QVBoxLayout(self)
         root.addWidget(create_page_heading(
             "إدارة الصناديق والبنوك",
