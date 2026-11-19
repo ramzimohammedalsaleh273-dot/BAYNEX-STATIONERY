@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
+    QCompleter,
     QLabel,
     QTableView,
     QTableWidget,
@@ -78,3 +79,14 @@ def fit_window_to_screen(
     target_height = min(height, max_height)
     window.setMinimumSize(min(min_width, target_width), min(min_height, target_height))
     window.resize(target_width, target_height)
+
+
+def configure_searchable_combo(combo: QComboBox) -> None:
+    """Enable forgiving Arabic/Latin substring search without allowing free text."""
+    combo.setEditable(True)
+    combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+    completer = QCompleter(combo.model(), combo)
+    completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+    completer.setFilterMode(Qt.MatchFlag.MatchContains)
+    completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+    combo.setCompleter(completer)
