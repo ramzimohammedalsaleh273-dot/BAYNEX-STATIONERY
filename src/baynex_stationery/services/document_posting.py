@@ -201,3 +201,37 @@ def post_sales_return_journal(session: Session, returned_doc) -> JournalEntry:
         description=f"قيد مرتجع المبيعات {returned_doc.number}",
         entry_date=returned_doc.created_at, lines=lines,
     )
+
+
+def post_purchase_return_journal(session: Session, returned_doc) -> JournalEntry:
+    """Debit supplier control and credit inventory/input-tax for a supplier return."""
+    amount = money(Decimal(returned_doc.amount))
+    tax = money(Decimal(returned_doc.tax_amount))
+    inventory_value = amount - tax
+    if amount <= 0 or tax < 0 or tax > amount:
+        raise ValueError("قيم مرتجع المشتريات لا تسمح بإنشاء قيد محاسبي متوازن")
+    lines: list[dict] = []
+    suppliers = _account(
+        session, code="2100", name="الموردون", account_type="liability",
+    )
+    lines.append({
+        "account_id": suppliers.id, "debit": amount,
+        "supplier_id": returned_doc.supplier_id,
+    })
+    if inventory_value:
+        inventory = _account(
+            session, code="1200", name="مخزون البضاعة", account_type="asset",
+        )
+        lines.append({"account_id": inventory.id, "credit": inventory_value})
+    if tax:
+        input_tax = _account(
+            session, code="1300", name="ضريبة مدخلات قابلة للاسترداد",
+            account_type="asset",
+        )
+        lines.append({"account_id": input_tax.id, "credit": tax})
+    return _post_once(
+        session, source_type="purchase_return", source_id=returned_doc.id,
+        number=f"AUTO-PRET-{returned_doc.id}",
+        description=f"قيد مرتجع المشتريات {returned_doc.number}",
+        entry_date=returned_doc.created_at, lines=lines,
+    )
