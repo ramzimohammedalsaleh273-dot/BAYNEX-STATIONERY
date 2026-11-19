@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QApplication,
+    QCompleter,
     QLabel,
     QTableView,
     QTableWidget,
@@ -53,3 +55,38 @@ def configure_data_table(
     table.horizontalHeader().setHighlightSections(False)
     table.horizontalHeader().setStretchLastSection(stretch_last)
     table.setTextElideMode(Qt.TextElideMode.ElideRight)
+
+
+def fit_window_to_screen(
+    window: QWidget,
+    width: int,
+    height: int,
+    *,
+    min_width: int = 760,
+    min_height: int = 520,
+    margin: int = 32,
+) -> None:
+    """Keep ERP windows usable within the current Windows work area."""
+    screen = window.screen() or QApplication.primaryScreen()
+    if screen is None:
+        window.setMinimumSize(min_width, min_height)
+        window.resize(width, height)
+        return
+    available = screen.availableGeometry()
+    max_width = max(480, available.width() - margin)
+    max_height = max(360, available.height() - margin)
+    target_width = min(width, max_width)
+    target_height = min(height, max_height)
+    window.setMinimumSize(min(min_width, target_width), min(min_height, target_height))
+    window.resize(target_width, target_height)
+
+
+def configure_searchable_combo(combo: QComboBox) -> None:
+    """Enable forgiving Arabic/Latin substring search without allowing free text."""
+    combo.setEditable(True)
+    combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+    completer = QCompleter(combo.model(), combo)
+    completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+    completer.setFilterMode(Qt.MatchFlag.MatchContains)
+    completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+    combo.setCompleter(completer)

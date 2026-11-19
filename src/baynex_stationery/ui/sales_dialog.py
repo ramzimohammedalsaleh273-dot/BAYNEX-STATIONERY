@@ -28,7 +28,9 @@ from baynex_stationery.services.customers import create_customer, list_customers
 from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, post_sale
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (
+    configure_data_table, configure_searchable_combo, create_page_heading, fit_window_to_screen,
+)
 
 
 class SalesInvoiceDialog(QDialog):
@@ -38,7 +40,7 @@ class SalesInvoiceDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("فاتورة مبيعات | BAYNEX STATIONERY")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1120, 740)
+        fit_window_to_screen(self, 1120, 740, min_width=820, min_height=560)
         with SessionLocal.begin() as session:
             ensure_default_warehouse(session)
             self.products = list_products(session)
@@ -74,7 +76,8 @@ class SalesInvoiceDialog(QDialog):
         customer_row.addWidget(self.add_customer_button)
         self.warehouse = QComboBox()
         for warehouse in self.warehouses:
-            self.warehouse.addItem(warehouse.name, warehouse.id)
+            if warehouse.is_active:
+                self.warehouse.addItem(warehouse.name, warehouse.id)
         self.payment = QComboBox()
         for label, value in (("نقدي", "cash"), ("شبكة / بطاقة", "card"), ("تحويل", "transfer"), ("آجل", "credit")):
             self.payment.addItem(label, value)
@@ -95,8 +98,7 @@ class SalesInvoiceDialog(QDialog):
         entry_layout = QHBoxLayout(entry)
         self.product = QComboBox()
         self.product.setMinimumWidth(350)
-        self.product.setEditable(True)
-        self.product.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        configure_searchable_combo(self.product)
         self.product.addItem("اختر الصنف أو ابحث بالاسم / الرمز / الباركود", None)
         for product in self.products:
             unit = product.unit_record.symbol if product.unit_record else product.unit

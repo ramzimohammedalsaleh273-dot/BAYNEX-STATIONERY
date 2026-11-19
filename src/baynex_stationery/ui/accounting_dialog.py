@@ -31,7 +31,9 @@ from baynex_stationery.services.accounting import (
     post_journal_entry,
     trial_balance,
 )
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (
+    configure_data_table, create_page_heading, fit_window_to_screen,
+)
 
 
 class AccountingDialog(QDialog):
@@ -39,7 +41,7 @@ class AccountingDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("الحسابات والقيود اليومية | BAYNEX")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1120, 720)
+        fit_window_to_screen(self, 1120, 720, min_width=820, min_height=560)
 
         root = QVBoxLayout(self)
         root.addWidget(create_page_heading(
@@ -214,6 +216,12 @@ class AccountingDialog(QDialog):
                 value = Decimal(amount.text().strip())
                 if not value.is_finite() or value <= 0 or value != value.quantize(Decimal("0.01")):
                     raise ValueError("المبلغ يجب أن يكون موجباً وبخانتين عشريتين")
+                if not number.text().strip():
+                    raise ValueError("رقم القيد مطلوب")
+                if not description.text().strip():
+                    raise ValueError("بيان القيد مطلوب")
+                if debit_account.currentData() is None or credit_account.currentData() is None:
+                    raise ValueError("حدد الحساب المدين والحساب الدائن")
                 if debit_account.currentData() == credit_account.currentData():
                     raise ValueError("اختر حسابين مختلفين")
                 with SessionLocal.begin() as session:

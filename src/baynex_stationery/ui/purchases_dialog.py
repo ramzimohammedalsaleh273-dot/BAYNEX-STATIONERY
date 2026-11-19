@@ -33,7 +33,16 @@ from baynex_stationery.services.purchases import (
     list_suppliers,
     post_purchase,
 )
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (
+    configure_data_table, configure_searchable_combo, create_page_heading, fit_window_to_screen,
+)
+
+
+def calculate_payment_balance(total: Decimal, paid: Decimal) -> tuple[Decimal, Decimal]:
+    """Return non-negative remaining balance and any invalid overpayment amount."""
+    remaining = max(Decimal("0.00"), total - paid).quantize(Decimal("0.01"))
+    overpayment = max(Decimal("0.00"), paid - total).quantize(Decimal("0.01"))
+    return remaining, overpayment
 
 
 class PurchasesDialog(QDialog):
@@ -43,7 +52,7 @@ class PurchasesDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("الموردون وفواتير المشتريات | BAYNEX")
         self.setLayoutDirection(Qt.LayoutDirection.RightToLeft)
-        self.resize(1180, 760)
+        fit_window_to_screen(self, 1180, 760, min_width=860, min_height=600)
         with SessionLocal.begin() as session:
             ensure_default_warehouse(session)
             self.products = list_products(session)
@@ -62,6 +71,7 @@ class PurchasesDialog(QDialog):
         supplier_form = QFormLayout(supplier_box)
         supplier_row = QHBoxLayout()
         self.supplier = QComboBox()
+        configure_searchable_combo(self.supplier)
         self.supplier.setMinimumWidth(320)
         self.add_supplier_button = QPushButton("مورد جديد")
         supplier_row.addWidget(self.supplier, 1)
@@ -93,8 +103,7 @@ class PurchasesDialog(QDialog):
         entry = QGroupBox("إضافة صنف إلى الفاتورة")
         entry_row = QHBoxLayout(entry)
         self.product = QComboBox()
-        self.product.setEditable(True)
-        self.product.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        configure_searchable_combo(self.product)
         self.product.setMinimumWidth(330)
         self.product.addItem("اختر الصنف أو ابحث بالاسم والرمز", None)
         for item in self.products:
@@ -134,10 +143,15 @@ class PurchasesDialog(QDialog):
         self.remaining = QLabel("0.00")
         for label, value in (("الإجمالي:", self.subtotal), ("الصافي:", self.total), ("المتبقي:", self.remaining)):
             totals.addWidget(QLabel(label))
+            value.setObjectName("metricValue")
             value.setMinimumWidth(110)
             value.setAlignment(Qt.AlignmentFlag.AlignCenter)
             totals.addWidget(value)
         root.addLayout(totals)
+        self.payment_hint = QLabel(" ")
+        self.payment_hint.setObjectName("mutedText")
+        self.payment_hint.setWordWrap(True)
+        root.addWidget(self.payment_hint)
 
         history_box = QGroupBox("سجل فواتير المشتريات")
         history_layout = QVBoxLayout(history_box)
@@ -188,8 +202,8 @@ class PurchasesDialog(QDialog):
             raise ValueError(f"{label} يجب أن يكون رقماً موجباً")
         return number
 
-    def refresh_suppliers(self):
-        selected = self.supplier.currentData()
+    def refresh_suppliers(self, selected_id=None):
+        selected = selected_id if selected_id is not None else self.supplier.currentData()
         with SessionLocal() as session:
             self.suppliers = list_suppliers(session)
         self.supplier.clear()
@@ -211,8 +225,9 @@ class PurchasesDialog(QDialog):
             return
         try:
             with SessionLocal.begin() as session:
-                create_supplier(session, code=code, name=name, phone=phone)
-            self.refresh_suppliers()
+                supplier = create_supplier(session, code=code, name=name, phone=phone)
+                supplier_id = supplier.id
+            self.refresh_suppliers(supplier_id)
             QMessageBox.information(self, "الموردون", "تم حفظ المورد")
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر حفظ المورد", str(exc))
@@ -273,7 +288,17 @@ class PurchasesDialog(QDialog):
             paid = subtotal + Decimal(1)
         self.subtotal.setText(f"{subtotal:.2f}")
         self.total.setText(f"{subtotal:.2f}")
-        self.remaining.setText(f"{subtotal - paid:.2f}")
+        remaining, overpayment = calculate_payment_balance(subtotal, paid)
+        self.remaining.setText(f"{remaining:.2f}")
+        if overpayment:
+            self.payment_hint.setText(
+                f"تنبيه: المبلغ المدفوع يتجاوز إجمالي الفاتورة بمقدار {overpayment:.2f}. "
+                "خفّض مبلغ الدفع قبل الترحيل؛ لا يُسجّل الفرق كسلفة للمورد."
+            )
+            self.payment_hint.setStyleSheet("color: #B42318; font-weight: 700;")
+        else:
+            self.payment_hint.setText(" ")
+            self.payment_hint.setStyleSheet("")
         self.post_button.setEnabled(bool(self.table.rowCount()) and paid <= subtotal)
 
     def save_purchase(self):

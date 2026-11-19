@@ -2,13 +2,17 @@
 
 import os
 from datetime import datetime
+from decimal import Decimal
 from types import SimpleNamespace
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget, QToolBar
 
-from baynex_stationery.ui.components import configure_data_table, create_page_heading
+from baynex_stationery.ui.components import (
+    configure_data_table, create_page_heading, fit_window_to_screen,
+)
 from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
+from baynex_stationery.ui.purchases_dialog import calculate_payment_balance
 
 _APP = None
 
@@ -77,13 +81,35 @@ def test_inventory_movements_dialog_renders_real_movement_rows():
 
 
 
-def test_classic_erp_theme_has_compact_toolbar_and_grid_palette():
+def test_modern_erp_theme_has_consistent_toolbar_tables_and_form_controls():
     from baynex_stationery.ui.theme import BAYNEX_STYLESHEET
 
     assert "QToolBar" in BAYNEX_STYLESHEET
     assert "QHeaderView::section" in BAYNEX_STYLESHEET
-    assert "#FFFEEF" in BAYNEX_STYLESHEET
-    assert "qlineargradient" in BAYNEX_STYLESHEET
+    assert "QLineEdit:focus" in BAYNEX_STYLESHEET
+    assert "QPushButton#primaryAction" in BAYNEX_STYLESHEET
+    assert "#F3F6FA" in BAYNEX_STYLESHEET
+    assert "#176B96" in BAYNEX_STYLESHEET
+    assert "#FFFEEF" not in BAYNEX_STYLESHEET
+    assert "qlineargradient" not in BAYNEX_STYLESHEET
+
+
+def test_purchase_payment_balance_never_displays_negative_remaining():
+    remaining, overpayment = calculate_payment_balance(
+        Decimal("450.00"), Decimal("500.00")
+    )
+
+    assert remaining == Decimal("0.00")
+    assert overpayment == Decimal("50.00")
+
+
+def test_purchase_payment_balance_reports_normal_outstanding_amount():
+    remaining, overpayment = calculate_payment_balance(
+        Decimal("450.00"), Decimal("200.00")
+    )
+
+    assert remaining == Decimal("250.00")
+    assert overpayment == Decimal("0.00")
 
 
 
@@ -106,3 +132,15 @@ def test_main_window_uses_two_compact_toolbars_and_preserves_actions(monkeypatch
         "ملف", "الأصناف", "المبيعات", "المشتريات", "الحسابات", "الصناديق والبنوك", "المخزون", "مساعدة"
     ]
     window.close()
+
+
+def test_window_geometry_is_clamped_to_available_screen(qapp):
+    from PySide6.QtWidgets import QDialog
+
+    dialog = QDialog()
+    fit_window_to_screen(dialog, 1600, 1000, min_width=1000, min_height=700)
+    assert dialog.width() > 0
+    assert dialog.height() > 0
+    assert dialog.minimumWidth() <= dialog.width()
+    assert dialog.minimumHeight() <= dialog.height()
+    dialog.close()
