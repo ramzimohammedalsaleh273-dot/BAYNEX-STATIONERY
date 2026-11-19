@@ -20,17 +20,18 @@
 - [x] تسوية تقريب مبالغ المرتجعات الجزئية بحيث يساوي مجموعها قيمة سطر الشراء الأصلي.
 - [x] قيد إشعار المورد الدائن، وتقييم المخزون، وترحيل فرق التكلفة.
 - [x] واجهات عربية RTL للمكونات الأساسية.
+- [x] ترحيل التحصيل المجزأ في POS إلى حسابات الخزينة المطابقة لكل وسيلة دفع قبل اعتماد الفاتورة.
 
-## أدلة الاختبارات الآلية
+## أدلة الاختبارات الآلية — آخر التزام
 
-الالتزام المختبر: `4e0b98af9a745e4530f4dbc376080e74212c52f6`.
+الالتزام المختبر: `e2cc00ac51a5147f418224eef297da097bce9db5`.
 
-تشغيل GitHub Actions: [44557641485](https://github.com/ramzimohammedalsaleh273-dot/BAYNEX-STATIONERY/actions/runs/44557641485).
+تشغيل GitHub Actions: [44558284353](https://github.com/ramzimohammedalsaleh273-dot/BAYNEX-STATIONERY/actions/runs/44558284353).
 
 - [x] Windows runner مع Python 3.12.
 - [x] Ruff — `All checks passed!`.
 - [x] فحص صياغة مشغل Windows.
-- [x] pytest — `100 passed in 7.21s`.
+- [x] pytest — **101 passed in 11.98s**.
 - [x] بناء Wheel.
 - [x] تثبيت الحزمة في مسار معزول واختبار التشغيل — `WHEEL_INSTALL_SMOKE_OK`.
 
