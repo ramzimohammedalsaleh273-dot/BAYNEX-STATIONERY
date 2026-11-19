@@ -167,3 +167,36 @@ def test_purchase_return_cannot_exceed_original_remaining_quantity(session):
             lines=[{"purchase_item_id": purchase.items[0].id, "quantity": "2"}],
         )
     assert get_stock_balance(session, product.id, warehouse.id) == Decimal("1.000")
+
+
+def test_purchase_return_posts_inventory_valuation_difference(session):
+    warehouse = Warehouse(code="RET-VAL", name="مستودع تقييم", is_default=True)
+    product = Product(
+        sku="PUR-RET-VAL", name="دفتر فرق تكلفة", cost_price=Decimal("2.00"),
+        sale_price=Decimal("5.00"),
+    )
+    session.add_all([warehouse, product])
+    supplier = create_supplier(session, code="RET-VAL-SUP", name="مورد التقييم")
+    session.flush()
+    purchase = create_purchase(
+        session, number="PUR-RET-VAL-BASE", supplier_id=supplier.id,
+        warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "5", "unit_cost": "3.00", "discount": "2.00"}],
+    )
+    post_purchase(session, purchase_id=purchase.id)
+    product.cost_price = Decimal("2.00")
+    returned = create_purchase_return(
+        session, number="PUR-RET-VAL-001", purchase_id=purchase.id,
+        lines=[{"purchase_item_id": purchase.items[0].id, "quantity": "2"}],
+    )
+    assert returned.items[0].inventory_cost == Decimal("4.00")
+    journal = session.scalar(select(JournalEntry).where(
+        JournalEntry.source_type == "purchase_return",
+        JournalEntry.source_id == returned.id,
+    ))
+    assert journal is not None and journal.status == "posted"
+    variance = [line for line in journal.lines if line.account.code == "5300"]
+    assert len(variance) == 1
+    assert variance[0].credit == Decimal("1.20")
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("5.20")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("5.20")
