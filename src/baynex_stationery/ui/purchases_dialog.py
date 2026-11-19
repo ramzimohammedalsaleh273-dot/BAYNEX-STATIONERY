@@ -28,6 +28,7 @@ from baynex_stationery.services.products import list_products
 from baynex_stationery.services.purchases import (
     create_purchase,
     create_supplier,
+    create_purchase_return,
     list_purchases,
     list_suppliers,
     post_purchase,
@@ -152,10 +153,12 @@ class PurchasesDialog(QDialog):
 
         actions = QHBoxLayout()
         self.refresh_button = QPushButton("تحديث السجل")
+        self.return_button = QPushButton("مرتجع المشتريات")
         self.post_button = QPushButton("حفظ وترحيل فاتورة الشراء")
         self.post_button.setObjectName("primaryAction")
         close_button = QPushButton("إغلاق")
         actions.addWidget(self.refresh_button)
+        actions.addWidget(self.return_button)
         actions.addStretch(1)
         actions.addWidget(self.post_button)
         actions.addWidget(close_button)
@@ -168,6 +171,7 @@ class PurchasesDialog(QDialog):
         self.paid.textChanged.connect(self.recalculate)
         self.post_button.clicked.connect(self.save_purchase)
         self.refresh_button.clicked.connect(self.refresh_history)
+        self.return_button.clicked.connect(self.create_return)
         close_button.clicked.connect(self.reject)
         self.refresh_suppliers()
         self.fill_cost()
@@ -303,6 +307,54 @@ class PurchasesDialog(QDialog):
             self.accept()
         except (ValueError, SQLAlchemyError) as exc:
             QMessageBox.warning(self, "تعذر حفظ فاتورة الشراء", str(exc))
+
+
+    def create_return(self):
+        row = self.history_table.currentRow()
+        if row < 0 or row >= len(self.history):
+            QMessageBox.information(self, "مرتجع المشتريات", "حدد فاتورة مشتريات مرحلة من السجل أولاً")
+            return
+        purchase = self.history[row]
+        if purchase.status != "posted":
+            QMessageBox.warning(self, "مرتجع المشتريات", "لا يمكن إرجاع أصناف من فاتورة غير مرحلة")
+            return
+        if not purchase.items:
+            QMessageBox.warning(self, "مرتجع المشتريات", "الفاتورة المحددة لا تحتوي على أصناف")
+            return
+        choices = [
+            f"{item.product_sku} | {item.product_name} | الكمية الأصلية: {item.quantity}"
+            for item in purchase.items
+        ]
+        selected, ok = QInputDialog.getItem(
+            self, "مرتجع المشتريات", "اختر الصنف المراد إرجاعه:", choices, 0, False,
+        )
+        if not ok:
+            return
+        item_index = choices.index(selected)
+        original = purchase.items[item_index]
+        quantity, ok = QInputDialog.getText(
+            self, "كمية المرتجع", f"الكمية المراد إرجاعها من {original.product_name}:",
+            text="1",
+        )
+        if not ok:
+            return
+        try:
+            return_number = f"PR-{datetime.now().strftime('%Y%m%d-%H%M%S')}"
+            with SessionLocal.begin() as session:
+                returned = create_purchase_return(
+                    session, number=return_number, purchase_id=purchase.id,
+                    lines=[{"purchase_item_id": original.id, "quantity": quantity}],
+                    notes=f"مرتجع مرتبط بفاتورة {purchase.number}",
+                )
+                amount = returned.amount
+            QMessageBox.information(
+                self, "تم ترحيل مرتجع المشتريات",
+                f"رقم المرتجع: {return_number}\\nالقيمة: {amount:.2f}\\n"
+                "تم تخفيض المخزون وتسجيل إشعار دائن للمورد والقيد المحاسبي.",
+            )
+            self.refresh_history()
+        except (ValueError, SQLAlchemyError) as exc:
+            QMessageBox.warning(self, "تعذر ترحيل المرتجع", str(exc))
 
     def refresh_history(self):
         with SessionLocal() as session:
