@@ -109,12 +109,12 @@ def create_journal_entry(
             raise ValueError("لا يمكن ربط سطر القيد بعميل ومورد معاً")
         if customer_id is not None:
             customer = session.get(Customer, int(customer_id))
-            if customer is None or not customer.is_active or debit <= 0:
-                raise ValueError(f"العميل في السطر {index} غير متاح أو اتجاه القيد غير صحيح")
+            if customer is None or not customer.is_active:
+                raise ValueError(f"العميل في السطر {index} غير موجود أو غير نشط")
         if supplier_id is not None:
             supplier = session.get(Supplier, int(supplier_id))
-            if supplier is None or not supplier.is_active or credit <= 0:
-                raise ValueError(f"المورد في السطر {index} غير متاح أو اتجاه القيد غير صحيح")
+            if supplier is None or not supplier.is_active:
+                raise ValueError(f"المورد في السطر {index} غير موجود أو غير نشط")
         if (debit > 0) == (credit > 0):
             raise ValueError(f"السطر {index} يجب أن يحتوي مديناً أو دائناً فقط")
         entry.lines.append(JournalLine(
