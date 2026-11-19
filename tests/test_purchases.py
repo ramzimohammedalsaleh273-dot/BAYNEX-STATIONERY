@@ -10,6 +10,7 @@ from baynex_stationery.services.inventory import get_stock_balance
 from baynex_stationery.services.purchases import (
     create_purchase,
     create_supplier,
+    create_purchase_return,
     list_purchases,
     post_purchase,
 )
@@ -106,3 +107,63 @@ def test_purchase_payment_uses_the_only_active_cashbox_ledger(session):
         line.account_id == cashbox.ledger_account_id and line.credit == Decimal("2.00")
         for line in journal.lines
     )
+
+
+
+def test_purchase_return_reduces_stock_and_posts_supplier_credit_journal(session):
+    warehouse = Warehouse(code="RET-MAIN", name="مستودع المرتجعات", is_default=True)
+    product = Product(
+        sku="PUR-RET-01", name="دفتر مرتجع", cost_price=Decimal("2.00"),
+        sale_price=Decimal("5.00"),
+    )
+    session.add_all([warehouse, product])
+    supplier = create_supplier(session, code="RET-SUP", name="مورد المرتجعات")
+    session.flush()
+    purchase = create_purchase(
+        session, number="PUR-RET-BASE", supplier_id=supplier.id,
+        warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "5", "unit_cost": "3.00", "discount": "2.00"}],
+    )
+    post_purchase(session, purchase_id=purchase.id)
+    returned = create_purchase_return(
+        session, number="PUR-RET-001", purchase_id=purchase.id,
+        lines=[{"purchase_item_id": purchase.items[0].id, "quantity": "2"}],
+    )
+    assert returned.amount == Decimal("5.20")
+    assert returned.supplier_id == supplier.id
+    assert get_stock_balance(session, product.id, warehouse.id) == Decimal("3.000")
+    journal = session.scalar(select(JournalEntry).where(
+        JournalEntry.source_type == "purchase_return",
+        JournalEntry.source_id == returned.id,
+    ))
+    assert journal is not None and journal.status == "posted"
+    assert sum((line.debit for line in journal.lines), Decimal("0.00")) == Decimal("5.20")
+    assert sum((line.credit for line in journal.lines), Decimal("0.00")) == Decimal("5.20")
+    assert any(line.supplier_id == supplier.id and line.debit == Decimal("5.20") for line in journal.lines)
+
+
+def test_purchase_return_cannot_exceed_original_remaining_quantity(session):
+    warehouse = Warehouse(code="RET-MAIN-2", name="مستودع المرتجعات", is_default=True)
+    product = Product(
+        sku="PUR-RET-02", name="قلم مرتجع", cost_price=Decimal("1.00"),
+        sale_price=Decimal("2.00"),
+    )
+    session.add_all([warehouse, product])
+    supplier = create_supplier(session, code="RET-SUP-2", name="مورد")
+    session.flush()
+    purchase = create_purchase(
+        session, number="PUR-RET-BASE-2", supplier_id=supplier.id,
+        warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "3", "unit_cost": "1.00"}],
+    )
+    post_purchase(session, purchase_id=purchase.id)
+    create_purchase_return(
+        session, number="PUR-RET-002", purchase_id=purchase.id,
+        lines=[{"purchase_item_id": purchase.items[0].id, "quantity": "2"}],
+    )
+    with pytest.raises(ValueError, match="تتجاوز الكمية المتبقية"):
+        create_purchase_return(
+            session, number="PUR-RET-003", purchase_id=purchase.id,
+            lines=[{"purchase_item_id": purchase.items[0].id, "quantity": "2"}],
+        )
+    assert get_stock_balance(session, product.id, warehouse.id) == Decimal("1.000")
