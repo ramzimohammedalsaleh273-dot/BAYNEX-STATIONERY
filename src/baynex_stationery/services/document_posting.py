@@ -10,7 +10,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from baynex_stationery.db.models import Account, JournalEntry, SaleItem, TreasuryAccount
+from baynex_stationery.db.models import Account, JournalEntry, Payment, SaleItem, TreasuryAccount
 from baynex_stationery.domain.pricing import money
 from baynex_stationery.services.accounting import (
     create_account,
@@ -79,12 +79,31 @@ def post_sales_invoice_journal(session: Session, sale) -> JournalEntry:
 
     lines: list[dict] = []
     if paid:
-        treasury_ledger = _unique_treasury_ledger(session, sale.payment_method)
-        clearing = treasury_ledger or _account(
-            session, code="1090", name="مدفوعات المبيعات تحت التسوية",
-            account_type="asset",
-        )
-        lines.append({"account_id": clearing.id, "debit": paid})
+        payments = list(session.scalars(
+            select(Payment).where(Payment.sale_id == sale.id).order_by(Payment.id.asc())
+        ))
+        if payments and money(sum((Decimal(item.amount) for item in payments), Decimal("0.00"))) != paid:
+            raise ValueError("مجموع دفعات فاتورة المبيعات لا يساوي المبلغ المدفوع")
+        payment_totals: dict[int, Decimal] = {}
+        if payments:
+            for payment in payments:
+                treasury_ledger = _unique_treasury_ledger(session, payment.method)
+                clearing = treasury_ledger or _account(
+                    session, code="1090", name="مدفوعات المبيعات تحت التسوية",
+                    account_type="asset",
+                )
+                payment_totals[clearing.id] = payment_totals.get(
+                    clearing.id, Decimal("0.00")
+                ) + Decimal(payment.amount)
+        else:
+            treasury_ledger = _unique_treasury_ledger(session, sale.payment_method)
+            clearing = treasury_ledger or _account(
+                session, code="1090", name="مدفوعات المبيعات تحت التسوية",
+                account_type="asset",
+            )
+            payment_totals[clearing.id] = paid
+        for account_id, amount in payment_totals.items():
+            lines.append({"account_id": account_id, "debit": money(amount)})
     if receivable:
         ar = _account(session, code="1100", name="العملاء وأوراق القبض", account_type="asset")
         lines.append({"account_id": ar.id, "debit": receivable, "customer_id": sale.customer_id})
