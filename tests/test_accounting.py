@@ -100,7 +100,6 @@ def test_draft_journals_do_not_appear_in_ledger_or_trial_balance(session):
 
 
 def test_party_subledgers_accept_both_debit_and_credit_movements(session):
-    cash, capital = make_accounts(session)
     payable = create_account(
         session, code="2100", name="الموردون", account_type="liability",
     )
