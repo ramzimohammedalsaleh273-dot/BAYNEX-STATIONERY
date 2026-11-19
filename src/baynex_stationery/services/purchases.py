@@ -213,6 +213,7 @@ def create_purchase_return(
     result_items: list[PurchaseReturnItem] = []
     total_amount = Decimal("0.00")
     total_tax = Decimal("0.00")
+    total_inventory_cost = Decimal("0.00")
 
     for index, row in enumerate(lines, 1):
         try:
@@ -231,12 +232,20 @@ def create_purchase_return(
             raise ValueError(f"كمية المرتجع تتجاوز الكمية المتبقية للصنف {original.product_name}")
         line_total = money(Decimal(original.line_total) * quantity / Decimal(original.quantity))
         tax_amount = money(Decimal(original.tax_amount) * quantity / Decimal(original.quantity))
+        product = session.scalar(
+            select(Product).where(Product.id == original.product_id).with_for_update()
+        )
+        if product is None:
+            raise ValueError("الصنف المرتبط بفاتورة الشراء غير موجود")
+        inventory_cost = money(Decimal(product.cost_price) * quantity)
         result_items.append(PurchaseReturnItem(
             purchase_item_id=original.id, product_id=original.product_id,
             quantity=quantity, line_total=line_total, tax_amount=tax_amount,
+            inventory_cost=inventory_cost,
         ))
         total_amount += line_total
         total_tax += tax_amount
+        total_inventory_cost += inventory_cost
 
     total_amount = money(total_amount)
     total_tax = money(total_tax)
