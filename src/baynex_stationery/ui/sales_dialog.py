@@ -29,7 +29,7 @@ from baynex_stationery.services.inventory import ensure_default_warehouse, list_
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, post_sale
 from baynex_stationery.ui.components import (
-    configure_data_table, create_page_heading, fit_window_to_screen,
+    configure_data_table, configure_searchable_combo, create_page_heading, fit_window_to_screen,
 )
 
 
@@ -65,6 +65,7 @@ class SalesInvoiceDialog(QDialog):
         self.customer = QLineEdit("عميل نقدي")
         self.phone = QLineEdit()
         self.customer_account = QComboBox()
+        configure_searchable_combo(self.customer_account)
         self.customer_account.addItem("عميل نقدي / بدون حساب", None)
         for customer_record in self.customers:
             self.customer_account.addItem(
@@ -76,7 +77,8 @@ class SalesInvoiceDialog(QDialog):
         customer_row.addWidget(self.add_customer_button)
         self.warehouse = QComboBox()
         for warehouse in self.warehouses:
-            self.warehouse.addItem(warehouse.name, warehouse.id)
+            if warehouse.is_active:
+                self.warehouse.addItem(warehouse.name, warehouse.id)
         self.payment = QComboBox()
         for label, value in (("نقدي", "cash"), ("شبكة / بطاقة", "card"), ("تحويل", "transfer"), ("آجل", "credit")):
             self.payment.addItem(label, value)
@@ -97,8 +99,7 @@ class SalesInvoiceDialog(QDialog):
         entry_layout = QHBoxLayout(entry)
         self.product = QComboBox()
         self.product.setMinimumWidth(350)
-        self.product.setEditable(True)
-        self.product.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        configure_searchable_combo(self.product)
         self.product.addItem("اختر الصنف أو ابحث بالاسم / الرمز / الباركود", None)
         for product in self.products:
             unit = product.unit_record.symbol if product.unit_record else product.unit
