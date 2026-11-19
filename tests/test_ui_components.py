@@ -2,6 +2,7 @@
 
 import os
 from datetime import datetime
+from decimal import Decimal
 from types import SimpleNamespace
 
 from PySide6.QtCore import Qt
@@ -9,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget, QTo
 
 from baynex_stationery.ui.components import configure_data_table, create_page_heading
 from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
+from baynex_stationery.ui.purchases_dialog import calculate_payment_balance
 
 _APP = None
 
@@ -91,9 +93,6 @@ def test_modern_erp_theme_has_consistent_toolbar_tables_and_form_controls():
 
 
 def test_purchase_payment_balance_never_displays_negative_remaining():
-    from decimal import Decimal
-    from baynex_stationery.ui.purchases_dialog import calculate_payment_balance
-
     remaining, overpayment = calculate_payment_balance(
         Decimal("450.00"), Decimal("500.00")
     )
