@@ -195,3 +195,36 @@ def test_sales_payment_uses_the_only_active_cashbox_ledger(session):
         line.account_id == cashbox.ledger_account_id and line.debit == Decimal("5.00")
         for line in journal.lines
     )
+
+
+
+def test_mixed_pos_tender_posts_each_payment_to_its_own_treasury_ledger(session):
+    product = make_product(session, stock="30")
+    cashbox = create_treasury_account(
+        session, code="MIX-CASH", name="صندوق البيع", account_kind="cash",
+        ledger_code="MIX-1001",
+    )
+    bank = create_treasury_account(
+        session, code="MIX-BANK", name="بنك البيع", account_kind="bank",
+        ledger_code="MIX-1002",
+    )
+    warehouse = ensure_default_warehouse(session)
+    sale = create_sale(
+        session, number="MIXED-POS-001", warehouse_id=warehouse.id,
+        lines=[{"product_id": product.id, "quantity": "20"}],
+        paid_amount="70.00", payment_method="mixed",
+    )
+    sale.payments.extend([
+        Payment(amount=Decimal("50.00"), method="cash"),
+        Payment(amount=Decimal("20.00"), method="card"),
+    ])
+    post_sale(session, sale_id=sale.id)
+
+    journal = session.scalar(select(JournalEntry).where(
+        JournalEntry.source_type == "sale", JournalEntry.source_id == sale.id,
+    ))
+    debits = {line.account_id: line.debit for line in journal.lines if line.debit > 0}
+    assert debits[cashbox.ledger_account_id] == Decimal("50.00")
+    assert debits[bank.ledger_account_id] == Decimal("20.00")
+    assert sum((p.amount for p in sale.payments), Decimal("0.00")) == Decimal("70.00")
+    assert sale.paid_amount == Decimal("70.00")
