@@ -237,12 +237,26 @@ class TreasuryDialog(QDialog):
             if not value.is_finite() or value <= 0 or value != value.quantize(Decimal("0.01")):
                 raise ValueError("المبلغ يجب أن يكون موجباً وبخانتين عشريتين")
             kind = self.voucher_type.currentData()
+            source_id = self.source_account.currentData()
+            destination_id = self.destination_account.currentData()
+            counter_id = self.counter_account.currentData()
+            if source_id is None:
+                raise ValueError("اختر الصندوق أو البنك أولاً")
+            if kind == "transfer":
+                if destination_id is None:
+                    raise ValueError("اختر الحساب الوجهة للتحويل")
+                if source_id == destination_id:
+                    raise ValueError("لا يمكن التحويل من الحساب إلى نفسه")
+            elif counter_id is None:
+                raise ValueError("اختر الحساب المقابل للقيد")
+            if not self.description.text().strip():
+                raise ValueError("اكتب بيان السند")
             with SessionLocal.begin() as session:
                 voucher = create_treasury_voucher(
                     session, number=self.voucher_number.text(), voucher_type=kind,
-                    treasury_account_id=self.source_account.currentData(),
-                    destination_account_id=self.destination_account.currentData() if kind == "transfer" else None,
-                    counter_account_id=self.counter_account.currentData() if kind != "transfer" else None,
+                    treasury_account_id=source_id,
+                    destination_account_id=destination_id if kind == "transfer" else None,
+                    counter_account_id=counter_id if kind != "transfer" else None,
                     amount=value, description=self.description.text(),
                 )
                 number, journal_number = voucher.number, voucher.journal_entry.number
