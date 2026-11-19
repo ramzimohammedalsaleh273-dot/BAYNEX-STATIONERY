@@ -102,9 +102,6 @@ def test_purchase_payment_balance_never_displays_negative_remaining():
 
 
 def test_purchase_payment_balance_reports_normal_outstanding_amount():
-    from decimal import Decimal
-    from baynex_stationery.ui.purchases_dialog import calculate_payment_balance
-
     remaining, overpayment = calculate_payment_balance(
         Decimal("450.00"), Decimal("200.00")
     )
