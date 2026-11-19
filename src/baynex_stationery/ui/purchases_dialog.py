@@ -27,8 +27,8 @@ from baynex_stationery.services.inventory import ensure_default_warehouse, list_
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.purchases import (
     create_purchase,
-    create_supplier,
     create_purchase_return,
+    create_supplier,
     list_purchases,
     list_suppliers,
     post_purchase,
