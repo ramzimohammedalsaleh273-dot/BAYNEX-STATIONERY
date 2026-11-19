@@ -9,8 +9,8 @@ from baynex_stationery.db.models import JournalEntry, Product, Warehouse
 from baynex_stationery.services.inventory import get_stock_balance
 from baynex_stationery.services.purchases import (
     create_purchase,
-    create_supplier,
     create_purchase_return,
+    create_supplier,
     list_purchases,
     post_purchase,
 )
