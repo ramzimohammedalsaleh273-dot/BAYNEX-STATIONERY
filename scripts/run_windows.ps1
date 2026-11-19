@@ -1,4 +1,4 @@
-# BAYNEX STATIONERY — Windows launcher
+﻿# BAYNEX STATIONERY — Windows launcher
 $ErrorActionPreference = "Stop"
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
