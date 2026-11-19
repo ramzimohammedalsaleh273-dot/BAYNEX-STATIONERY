@@ -805,15 +805,13 @@ class POSDialog(QDialog):
                     lines=lines,
                     customer_name=self.customer.text().strip() or "عميل نقدي",
                     customer_phone=self.customer_phone.text().strip() or None,
-                    payment_method=payment.payment_method if payment.payment_method != "mixed" else "cash",
-                    paid_amount=Decimal("0.00"),
+                    payment_method=payment.payment_method,
+                    paid_amount=payment.paid_amount,
                     notes=self.invoice_note.text().strip() or None,
                 )
-                post_sale(session, sale_id=sale.id)
-                sale.paid_amount = payment.paid_amount
-                sale.payment_method = payment.payment_method
                 for method, amount in payment.payment_lines:
-                    session.add(Payment(sale_id=sale.id, amount=amount, method=method))
+                    sale.payments.append(Payment(amount=amount, method=method))
+                post_sale(session, sale_id=sale.id)
                 log_cashier_event(
                     session, action="sale_posted", reference_type="sale",
                     reference_id=sale.id, reference_number=sale.number,
