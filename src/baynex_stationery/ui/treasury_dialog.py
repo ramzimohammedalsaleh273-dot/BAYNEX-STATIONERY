@@ -32,7 +32,9 @@ from baynex_stationery.services.treasury import (
     treasury_balance,
     treasury_summary,
 )
-from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
+from baynex_stationery.ui.components import (
+    configure_data_table, create_page_heading, fit_window_to_screen,
+)
 
 
 class TreasuryDialog(QDialog):

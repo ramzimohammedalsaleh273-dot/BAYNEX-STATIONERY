@@ -49,7 +49,7 @@ from baynex_stationery.services.pos import calculate_line, calculate_totals, dec
 from baynex_stationery.services.pos_workflows import create_sale_return, log_cashier_event
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, list_sales, post_sale
-from baynex_stationery.ui.components import configure_data_table
+from baynex_stationery.ui.components import configure_data_table, fit_window_to_screen
 
 
 class POSPaymentDialog(QDialog):

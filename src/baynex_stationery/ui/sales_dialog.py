@@ -28,7 +28,9 @@ from baynex_stationery.services.customers import create_customer, list_customers
 from baynex_stationery.services.inventory import ensure_default_warehouse, list_warehouses
 from baynex_stationery.services.products import list_products
 from baynex_stationery.services.sales import create_sale, post_sale
-from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
+from baynex_stationery.ui.components import (
+    configure_data_table, create_page_heading, fit_window_to_screen,
+)
 
 
 class SalesInvoiceDialog(QDialog):

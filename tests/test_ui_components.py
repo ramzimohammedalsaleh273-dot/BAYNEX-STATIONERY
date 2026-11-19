@@ -8,7 +8,9 @@ from types import SimpleNamespace
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QGroupBox, QLabel, QTableWidget, QToolBar
 
-from baynex_stationery.ui.components import (\n    configure_data_table, create_page_heading, fit_window_to_screen,\n)
+from baynex_stationery.ui.components import (
+    configure_data_table, create_page_heading, fit_window_to_screen,
+)
 from baynex_stationery.ui.main_window import InventoryMovementsDialog, ProductDialog
 from baynex_stationery.ui.purchases_dialog import calculate_payment_balance
 
